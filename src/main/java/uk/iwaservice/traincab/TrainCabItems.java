@@ -6,7 +6,6 @@ import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsInteractionBehaviour;
-import com.simibubi.create.content.contraptions.actors.trainControls.ControlsMovementBehaviour;
 import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
 import net.minecraft.core.registries.Registries;
@@ -27,6 +26,7 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import uk.iwaservice.traincab.block.AdvancedCabMovementBehaviour;
 import uk.iwaservice.traincab.block.AdvancedStationBlock;
 import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlock;
@@ -105,9 +105,9 @@ public final class TrainCabItems {
         TABS.register(modEventBus);
         modEventBus.addListener((FMLCommonSetupEvent event) -> event.enqueueWork(() -> {
             MovingInteractionBehaviour.REGISTRY.register(CONDUCTOR_PANEL.get(), new ConductorPanelInteraction());
-            // Same behaviours Create gives its own controls: right-click to drive, animated lever.
+            // Create's controls behaviours: right-click to drive (its levers are part of the model, so not drawn).
             MovingInteractionBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new ControlsInteractionBehaviour());
-            MovementBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new ControlsMovementBehaviour());
+            MovementBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new AdvancedCabMovementBehaviour());
             // Display links can read a 高度駅 like Create's station.
             DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.STATION_SUMMARY.get());
             DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.TRAIN_STATUS.get());
