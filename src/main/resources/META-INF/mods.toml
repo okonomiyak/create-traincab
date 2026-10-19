@@ -6,7 +6,7 @@ license="GPL-3.0-only"
 modId="traincab"
 version="${file.jarVersion}"
 displayName="Train Cab HUD"
-description='''Cab speedometer HUD and a stepped master controller (P5..N..B7/EB) for driving Create trains.'''
+description='''Cab HUD and driving simulation for Create trains: a stepped master controller (P5..N..B7/EB) with reverser, station stop assist with stop-position grading, conductor duty with real door control, signal bell and on-board announcements, an advanced cab with a brake cylinder pressure gauge, and a horn and music horn.'''
 
 [[dependencies.traincab]]
     modId="forge"
