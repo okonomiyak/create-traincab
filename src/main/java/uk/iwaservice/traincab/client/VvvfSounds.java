@@ -54,6 +54,14 @@ public final class VvvfSounds {
     private static final int CHUNK_SAMPLES = VvvfSynth.FS / 10;
     /** Accelerating or slowing by more than this share of Create's acceleration counts as 力行 / 回生 (N coasts at 1/40). */
     private static final double ACCEL_THRESHOLD = 0.1;
+    /**
+     * Create sends carriage positions every 3 ticks and clients chase them, so the distance moved per tick wobbles
+     * more the faster the train goes. Speed is the average over this many ticks (a multiple of 3), and the
+     * acceleration compares it with the window before.
+     */
+    private static final int WINDOW = 12;
+    /** A new 力行 / 惰行 / 回生 reading has to hold this many ticks before the sound follows it. */
+    private static final int STATE_HOLD = 6;
 
     // Client thread only.
     private static final Map<UUID, TrainSound> SOUNDS = new HashMap<>();
@@ -99,10 +107,11 @@ public final class VvvfSounds {
 
         private final VvvfSynth synth = new VvvfSynth();
         private CarriageContraptionEntity carriage;
-        /** Blocks / second. */
-        private double speed;
-        /** Blocks / second². */
-        private double accel;
+        /** Blocks moved in each of the last 2 × WINDOW ticks, a ring indexed by {@link #ticks}. */
+        private final double[] moved = new double[2 * WINDOW];
+        private int ticks;
+        private int state = VvvfSynth.COAST;
+        private int pending;
         private int retry;
         boolean stopped;
 
@@ -114,15 +123,27 @@ public final class VvvfSounds {
         void update(SoundManager sounds, CarriageContraptionEntity cce) {
             carriage = cce;
             tick();
-            double moved = cce.position().distanceTo(new Vec3(cce.xo, cce.yo, cce.zo)) * 20;
-            double last = speed;
-            speed += (moved - speed) * 0.5;
-            accel += ((speed - last) * 20 - accel) * 0.2;
+            moved[ticks++ % moved.length] = cce.position().distanceTo(new Vec3(cce.xo, cce.yo, cce.zo));
+            double now = 0;
+            double before = 0;
+            for (int k = 1; k <= WINDOW; k++) {
+                now += moved[Math.floorMod(ticks - k, moved.length)];
+                before += moved[Math.floorMod(ticks - WINDOW - k, moved.length)];
+            }
+            // Blocks / second, and blocks / second² between the two windows' midpoints.
+            double speed = now / WINDOW * 20;
+            double accel = (now - before) / WINDOW * 20 / (WINDOW / 20.0);
 
             double threshold = AllConfigs.server().trains.trainAcceleration.getF() * ACCEL_THRESHOLD;
-            int state = accel > threshold ? VvvfSynth.POWER : accel < -threshold ? VvvfSynth.BRAKE : VvvfSynth.COAST;
+            int reading = accel > threshold ? VvvfSynth.POWER : accel < -threshold ? VvvfSynth.BRAKE : VvvfSynth.COAST;
+            pending = reading == state ? 0 : pending + 1;
+            if (pending >= STATE_HOLD) {
+                state = reading;
+                pending = 0;
+            }
             Train train = cce.getCarriage().train;
             // Our own mascon train: the notch says it directly, once moving (power held at a station makes no sound).
+            int state = this.state;
             if (train == TrainDrivingState.getActiveTrain() && TrainDrivingState.hasAdvancedCab() && speed > 0.1) {
                 int notch = TrainDrivingState.getNotch();
                 state = notch > 0 ? VvvfSynth.POWER : notch < 0 ? VvvfSynth.BRAKE : VvvfSynth.COAST;
