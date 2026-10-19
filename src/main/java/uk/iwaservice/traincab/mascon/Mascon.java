@@ -38,6 +38,9 @@ public final class Mascon {
 
     // Tuning (acceleration rate, stop tolerance, search range, overrun limit) lives in TrainCabServerConfig.
 
+    /** The track search for the next station is the costly part, so it runs this often (ticks). */
+    private static final int SEARCH_INTERVAL = 5;
+
     /** Passengers' "次は ○○" display doesn't need to be smooth: refresh it every this many ticks. */
     private static final int PASSENGER_SYNC_TICKS = 10;
 
@@ -51,6 +54,8 @@ public final class Mascon {
         ServerPlayer driver;
         GlobalStation station;
         double stationDistance;
+        /** Ticks until the next station search; in between the distance just counts down. */
+        int searchIn;
     }
 
     // Only touched on the server thread (packet handler and Train.tick).
@@ -204,9 +209,16 @@ public final class Mascon {
 
     /** Updates the next station ahead and the distance from the train's front to its stop point. */
     private static void trackStation(Train train, State s) {
+        // Between searches the train only moves along the path already found.
+        if (--s.searchIn > 0) {
+            if (s.station != null) {
+                s.stationDistance -= Math.abs(train.speed);
+            }
+            return;
+        }
+        s.searchIn = SEARCH_INTERVAL;
         GlobalStation[] found = {null};
         double[] distance = {0};
-        // ponytail: full track search every tick; throttle it if long networks show up in profiling.
         train.navigation.search(TrainCabServerConfig.stationSearchRange, s.direction > 0, null, (d, cost, reachedVia, current, station) -> {
             Train present = station.getPresentTrain();
             if (present != null && present != train) {
