@@ -1,10 +1,15 @@
 package uk.iwaservice.traincab.block;
 
+import com.simibubi.create.Create;
+import com.simibubi.create.content.trains.graph.EdgePointType;
+import com.simibubi.create.content.trains.graph.TrackGraph;
+import com.simibubi.create.content.trains.station.GlobalStation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -36,6 +41,10 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
     private final List<Clip> announcements = new ArrayList<>();
     @Nullable
     private Clip musicHorn;
+    /** 接近メロディ for the nearest station; off unless set, so bells already placed stay quiet. */
+    private final ApproachMelody approach = new ApproachMelody(false);
+    /** How near a station has to be for its trains' approach to play here. */
+    private static final int STATION_RANGE = 32;
 
     public DepartureBellBlockEntity(BlockPos pos, BlockState state) {
         super(TrainCabItems.DEPARTURE_BELL_ENTITY.get(), pos, state);
@@ -97,6 +106,51 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
         }
     }
 
+    @Override
+    @Nullable
+    public Clip approach() {
+        return approach.clip();
+    }
+
+    @Override
+    public boolean approachChime() {
+        return approach.chime();
+    }
+
+    @Override
+    public void setApproach(@Nullable Clip clip, boolean chime) {
+        approach.set(clip, chime);
+        changed();
+    }
+
+    /** Server ticker (see DepartureBellBlock). On a train the block entity doesn't tick, so this is platforms only. */
+    public void serverTick() {
+        ServerLevel server = (ServerLevel) level;
+        approach.tick(server, worldPosition);
+        if (server.getGameTime() % 10 == 0 && (approach.clip() != null || approach.chime())) {
+            approach.update(server, worldPosition, nearestStation());
+        }
+    }
+
+    /** The station (Create's or a 高度駅) whose block is nearest, within STATION_RANGE. */
+    @Nullable
+    private GlobalStation nearestStation() {
+        GlobalStation best = null;
+        double bestDist = STATION_RANGE * STATION_RANGE;
+        // ponytail: walks every station each half second; index them by position if worlds with hundreds show up.
+        for (TrackGraph graph : Create.RAILWAYS.trackNetworks.values()) {
+            for (GlobalStation station : graph.getPoints(EdgePointType.STATION)) {
+                BlockPos pos = station.getBlockEntityPos();
+                if (pos != null && level.dimension().equals(station.getBlockEntityDimension())
+                    && pos.distSqr(worldPosition) < bestDist) {
+                    best = station;
+                    bestDist = pos.distSqr(worldPosition);
+                }
+            }
+        }
+        return best;
+    }
+
     @Nullable
     public Clip musicHorn() {
         return musicHorn;
@@ -130,6 +184,7 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
             tag.putString("SoundName", soundName);
             tag.putInt("SoundBytes", soundBytes);
         }
+        approach.write(tag);
         speakers.write(tag);
         if (!announcements.isEmpty()) {
             ListTag list = new ListTag();
@@ -179,6 +234,7 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
         soundHash = tag.getString("SoundHash");
         soundName = tag.getString("SoundName");
         soundBytes = tag.getInt("SoundBytes");
+        approach.read(tag, level != null && level.isClientSide);
         speakers.read(tag);
         announcements.clear();
         announcements.addAll(readAnnouncements(tag));

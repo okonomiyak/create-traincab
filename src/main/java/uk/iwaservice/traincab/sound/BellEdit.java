@@ -16,7 +16,7 @@ import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 /**
  * Client → server: change the departure bell at {@code pos}. {@code op} is MELODY / BELL (back to that built-in
  * sound), MUSIC_HORN (back to the built-in MH), TWO_WAY (switch a 高度駅 between 一方向 and 双方向),
- * APPROACH_CHIME / APPROACH_OFF (a 高度駅's 接近メロディ back to the built-in chime, or off), or the index
+ * APPROACH_CHIME / APPROACH_OFF (the 接近メロディ back to the built-in chime, or off), or the index
  * of a 車内放送 to remove.
  */
 public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
@@ -55,9 +55,7 @@ public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
                     station.toggleTwoWay();
                 }
             } else if (edit.op == APPROACH_CHIME || edit.op == APPROACH_OFF) {
-                if (be instanceof AdvancedStationBlockEntity station) {
-                    station.setApproach(null, edit.op == APPROACH_CHIME);
-                }
+                be.setApproach(null, edit.op == APPROACH_CHIME);
             } else if (!(be instanceof DepartureBellBlockEntity bell)) {
                 return;
             } else if (edit.op == MUSIC_HORN) {
