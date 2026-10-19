@@ -21,6 +21,8 @@ final class VvvfSynth {
 
     private static final int OS = 4;
     private static final double ASYNC_CARRIER = 365;
+    /** Level of the asynchronous carrier at standstill (by ear). */
+    private static final double ASYNC_LEVEL = 0.35;
     /** In 力行 / 回生 the pulse count switches up at these fundamentals (Hz); 0 = asynchronous. */
     private static final double[] ACCEL_F = {0, 9, 16.4, 29.6, 41.3, 49.0, 52.4};
     private static final int[] ACCEL_N = {0, 27, 15, 9, 5, 3, 1};
@@ -121,6 +123,10 @@ final class VvvfSynth {
                     pwm += n == 1 ? (s >= 0 ? 1 : -1) : m * s > tri ? 1 : -1;
                 }
                 pwm /= OS;
+                if (n == 0) {
+                    // The bare 365 Hz carrier is shrill: start quiet and reach full level by the first sync mode.
+                    pwm *= ASYNC_LEVEL + (1 - ASYNC_LEVEL) * Math.min(f / ACCEL_F[1], 1);
+                }
             } else {
                 phase = frac(phase + f / FS);
             }
