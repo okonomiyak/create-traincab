@@ -221,6 +221,8 @@ Create の運転台(または高度運転台)で運転を始めると、Create �
 
 ## 6. 設定
 
+ゲーム内の「Mod」一覧 → Train Cab HUD → 「設定」から、Create と同じ設定画面で変更できる(サーバー設定はシングルプレイまたは OP のとき)。
+
 ### 6.1 クライアント(`config/traincab-client.toml`)
 
 | キー | 既定 | 内容 |

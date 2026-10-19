@@ -42,6 +42,8 @@ A Create add-on for realistic train driving: stepped master controller, cab HUD,
 
 キーはすべて、操作設定の「Train Cab HUD」から変更できます。
 
+HUD の位置・大きさ・単位やマスコンの加減速などは、「Mod」一覧 → Train Cab HUD → 「設定」から、Create と同じ設定画面で変更できます。
+
 ## ブロック・アイテム
 
 | 名前 | レシピ |

@@ -1,8 +1,12 @@
 package uk.iwaservice.traincab.client;
 
 import net.neoforged.api.distmarker.Dist;
+import net.createmod.catnip.config.ui.BaseConfigScreen;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -18,6 +22,13 @@ import uk.iwaservice.traincab.TrainCabMod;
 public final class TrainCabClientEvents {
 
     private TrainCabClientEvents() {
+    }
+
+    /** Mods → Train Cab HUD → Config opens the same settings screen Create uses, for the client and server configs. */
+    @SubscribeEvent
+    static void onClientSetup(FMLClientSetupEvent event) {
+        ModList.get().getModContainerById(TrainCabMod.MODID).ifPresent(container -> container.registerExtensionPoint(
+            IConfigScreenFactory.class, (c, parent) -> new BaseConfigScreen(parent, TrainCabMod.MODID)));
     }
 
     @SubscribeEvent
