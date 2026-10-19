@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.BufferUtils;
 import uk.iwaservice.traincab.TrainCabConfig;
+import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabMod;
 
 import javax.sound.sampled.AudioFormat;
@@ -32,7 +33,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * VVVF traction sound for the trains near the player, following each train's carriage nearest to them.
+ * VVVF traction sound for the trains near the player that carry a VVVFインバーター, coming from the nearest carriage
+ * with one.
  * Clients only see where carriages are, not the notch, so 力行 / 惰行 / 回生 comes from the acceleration
  * (except for the train this player drives with the mascon, which uses the notch).
  */
@@ -66,7 +68,7 @@ public final class VvvfSounds {
         if (mc.level != null && player != null && TrainCabConfig.vvvfSound) {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof CarriageContraptionEntity cce && cce.getCarriage() != null
-                    && cce.distanceToSqr(player) < RANGE * RANGE) {
+                    && cce.distanceToSqr(player) < RANGE * RANGE && hasInverter(cce)) {
                     nearest.merge(cce.getCarriage().train.id, cce,
                         (a, b) -> a.distanceToSqr(player) <= b.distanceToSqr(player) ? a : b);
                 }
@@ -85,6 +87,12 @@ public final class VvvfSounds {
         for (UUID id : heard) {
             SOUNDS.computeIfAbsent(id, k -> new TrainSound()).update(mc.getSoundManager(), nearest.get(id));
         }
+    }
+
+    // ponytail: scans the carriage's blocks every tick; cache per entity if huge trains show up in profiling.
+    private static boolean hasInverter(CarriageContraptionEntity cce) {
+        return cce.getContraption() != null && cce.getContraption().getBlocks().values().stream()
+            .anyMatch(info -> info.state().is(TrainCabItems.INVERTER.get()));
     }
 
     private static final class TrainSound extends AbstractSoundInstance implements TickableSoundInstance {

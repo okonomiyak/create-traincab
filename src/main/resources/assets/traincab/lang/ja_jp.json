@@ -7,6 +7,7 @@
   "key.traincab.bell": "合図ベル（車掌⇔運転士）",
   "item.traincab.conductor_cap": "車掌帽",
   "block.traincab.conductor_panel": "車掌ブロック",
+  "block.traincab.inverter": "VVVFインバーター",
   "key.traincab.announce": "車内放送（車掌・ワンマン時は運転士）",
   "block.traincab.advanced_cab": "高度運転台",
   "key.traincab.horn": "警笛（運転士）",
