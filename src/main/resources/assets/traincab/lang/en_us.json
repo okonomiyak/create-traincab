@@ -7,6 +7,7 @@
   "key.traincab.bell": "Signal Bell (conductor <-> driver)",
   "item.traincab.conductor_cap": "Conductor Cap",
   "block.traincab.conductor_panel": "Conductor Panel",
+  "block.traincab.inverter": "VVVF Inverter",
   "key.traincab.announce": "Announcement (conductor / one-man driver)",
   "block.traincab.advanced_cab": "Advanced Cab Desk",
   "key.traincab.horn": "Horn (driver)",

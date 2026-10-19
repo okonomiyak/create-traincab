@@ -47,6 +47,11 @@ public final class TrainCabItems {
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL));
     public static final DeferredItem<BlockItem> CONDUCTOR_PANEL_ITEM = ITEMS.registerSimpleBlockItem(CONDUCTOR_PANEL);
 
+    /** VVVFインバーター: built into a train, it makes the train sound like one (see VvvfSounds). */
+    public static final DeferredBlock<Block> INVERTER = BLOCKS.registerSimpleBlock("inverter",
+        BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL));
+    public static final DeferredItem<BlockItem> INVERTER_ITEM = ITEMS.registerSimpleBlockItem(INVERTER);
+
     /** 高度運転台: Create's train controls (drives the same way) plus the brake cylinder pressure gauge on the HUD. */
     public static final DeferredBlock<ControlsBlock> ADVANCED_CAB = BLOCKS.register("advanced_cab", () -> new ControlsBlock(
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL).noOcclusion()));
@@ -98,6 +103,7 @@ public final class TrainCabItems {
             if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
                 event.accept(CONDUCTOR_CAP);
                 event.accept(CONDUCTOR_PANEL_ITEM);
+                event.accept(INVERTER_ITEM);
                 event.accept(ADVANCED_CAB_ITEM);
                 event.accept(DEPARTURE_BELL_ITEM);
                 event.accept(ADVANCED_STATION_ITEM);
