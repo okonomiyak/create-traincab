@@ -15,6 +15,7 @@ import uk.iwaservice.traincab.TrainCabServerConfig;
 import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
+import uk.iwaservice.traincab.block.SpeakerLinks;
 import uk.iwaservice.traincab.mascon.TrainCabNetwork;
 
 import java.io.IOException;
@@ -92,6 +93,12 @@ public final class CustomSounds {
         Vec3 c = Vec3.atCenterOf(pos);
         TrainCabNetwork.CHANNEL.send(PacketDistributor.NEAR.with(
             () -> new PacketDistributor.TargetPoint(c.x, c.y, c.z, PLAY_RANGE, level.dimension())), new SoundPlay(pos, -1, hash));
+        // Linked スピーカー play it too, each heard around itself.
+        for (BlockPos speaker : SpeakerLinks.of(level, pos)) {
+            Vec3 s = Vec3.atCenterOf(speaker);
+            TrainCabNetwork.CHANNEL.send(PacketDistributor.NEAR.with(
+                () -> new PacketDistributor.TargetPoint(s.x, s.y, s.z, PLAY_RANGE, level.dimension())), new SoundPlay(speaker, -1, hash));
+        }
     }
 
     /** Players near {@code driver} hear the sound {@code hash} follow them (the train's MH). */

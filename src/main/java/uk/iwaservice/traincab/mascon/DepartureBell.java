@@ -14,6 +14,7 @@ import net.minecraftforge.server.ServerLifecycleHooks;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.BellSound;
+import uk.iwaservice.traincab.block.SpeakerLinks;
 import uk.iwaservice.traincab.sound.CustomSounds;
 
 import java.util.HashMap;
@@ -168,5 +169,8 @@ public final class DepartureBell {
 
     private static void play(Ringing r, net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
         r.level.playSound(null, r.pos, sound, SoundSource.BLOCKS, volume, pitch);
+        for (BlockPos speaker : SpeakerLinks.of(r.level, r.pos)) {
+            r.level.playSound(null, speaker, sound, SoundSource.BLOCKS, volume, pitch);
+        }
     }
 }

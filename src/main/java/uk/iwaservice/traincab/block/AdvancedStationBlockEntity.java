@@ -14,6 +14,8 @@ import com.simibubi.create.content.trains.signal.SignalBlockEntity.SignalState;
 import com.simibubi.create.content.trains.signal.SignalBoundary;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.content.trains.station.StationBlockEntity;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -153,8 +155,12 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
             if (note[0] == chimeTick) {
                 float pitch = (float) Math.pow(2, (note[1] - 12) / 12.0);
                 // Volume above 1 only widens the range: heard up to ~32 blocks away, like the departure bell.
-                level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_CHIME.value(), SoundSource.BLOCKS, 2f, pitch);
-                level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.BLOCKS, 1f, pitch);
+                List<BlockPos> at = new ArrayList<>(SpeakerLinks.of(level, worldPosition));
+                at.add(worldPosition);
+                for (BlockPos p : at) {
+                    level.playSound(null, p, SoundEvents.NOTE_BLOCK_CHIME.value(), SoundSource.BLOCKS, 2f, pitch);
+                    level.playSound(null, p, SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.BLOCKS, 1f, pitch);
+                }
             }
         }
         if (++chimeTick >= CHIME_LENGTH) {
@@ -268,6 +274,13 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         notifyUpdate();
     }
 
+    private final SpeakerLinks speakers = new SpeakerLinks();
+
+    @Override
+    public SpeakerLinks speakers() {
+        return speakers;
+    }
+
     @Override
     public boolean hasSound() {
         return !soundHash.isEmpty();
@@ -323,6 +336,9 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
             c.putInt("Bytes", approach.bytes());
             tag.put("Approach", c);
         }
+        if (!clientPacket) {
+            speakers.write(tag);
+        }
         if (signalId != null && !clientPacket) {
             tag.putUUID("DepartureSignal", signalId);
         }
@@ -340,6 +356,7 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         soundHash = tag.getString("SoundHash");
         soundName = tag.getString("SoundName");
         soundBytes = tag.getInt("SoundBytes");
+        speakers.read(tag);
         twoWay = tag.getBoolean("TwoWay");
         approachChime = !tag.contains("ApproachChime") || tag.getBoolean("ApproachChime");
         CompoundTag c = tag.getCompound("Approach");
