@@ -40,6 +40,10 @@ public class TrainCabConfig {
             "a couple of blocks of it as arriving at that station.")
         .define("stationAssist", true);
 
+    private static final ForgeConfigSpec.BooleanValue VVVF_SOUND = BUILDER
+        .comment("Play a VVVF inverter traction sound (GTO, like the Hankyu 8000 series) from moving trains nearby.")
+        .define("vvvfSound", true);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static boolean enabled = true;
@@ -48,6 +52,7 @@ public class TrainCabConfig {
     public static int offsetY = 2;
     public static double scale = 1.0;
     public static boolean stationAssist = true;
+    public static boolean vvvfSound = true;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -60,5 +65,6 @@ public class TrainCabConfig {
         offsetY = OFFSET_Y.get();
         scale = SCALE.get();
         stationAssist = STATION_ASSIST.get();
+        vvvfSound = VVVF_SOUND.get();
     }
 }

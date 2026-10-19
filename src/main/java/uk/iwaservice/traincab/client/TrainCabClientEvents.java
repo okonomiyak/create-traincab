@@ -70,6 +70,7 @@ public final class TrainCabClientEvents {
         static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase == TickEvent.Phase.END) {
                 TrainDrivingState.tick();
+                VvvfSounds.tick();
             }
         }
     }
