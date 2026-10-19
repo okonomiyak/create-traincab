@@ -23,6 +23,8 @@ final class VvvfSynth {
     private static final double ASYNC_CARRIER = 365;
     /** Level of the asynchronous carrier at standstill (by ear). */
     private static final double ASYNC_LEVEL = 0.35;
+    /** Depth of the async carrier's 2f swell at standstill (by ear). */
+    private static final double ASYNC_SWELL = 0.6;
     /** In 力行 / 回生 the pulse count switches up at these fundamentals (Hz); 0 = asynchronous. */
     private static final double[] ACCEL_F = {0, 9, 16.4, 29.6, 41.3, 49.0, 52.4};
     private static final int[] ACCEL_N = {0, 27, 15, 9, 5, 3, 1};
@@ -49,8 +51,8 @@ final class VvvfSynth {
     private static final double FAN = 0.05;
     /** The 2f hum of the magnetic pull on the stator. */
     private static final double HUM = 0.35;
-    /** Rotor slot whine at {@link #SLOT_RATIO} × f, rising with speed like a real motor. */
-    private static final double WHINE = 0.12;
+    /** Rotor slot whine at {@link #SLOT_RATIO} × f, rising with speed like a real motor (the ブーン when starting). */
+    private static final double WHINE = 0.2;
     private static final double SLOT_RATIO = 22;
     // Heard from a distance / through the floor: highs fade and the reflections off the surroundings blur it.
     private static final double DISTANT_CUTOFF = 1600;
@@ -125,7 +127,9 @@ final class VvvfSynth {
                 pwm /= OS;
                 if (n == 0) {
                     // The bare 365 Hz carrier is shrill: start quiet and reach full level by the first sync mode.
-                    pwm *= ASYNC_LEVEL + (1 - ASYNC_LEVEL) * Math.min(f / ACCEL_F[1], 1);
+                    // It also swells with the rotor's poles going round (2f), which makes it sound like a motor.
+                    double low = 1 - Math.min(f / ACCEL_F[1], 1);
+                    pwm *= (1 - (1 - ASYNC_LEVEL) * low) * (1 + ASYNC_SWELL * low * Math.sin(4 * Math.PI * phase));
                 }
             } else {
                 phase = frac(phase + f / FS);
@@ -140,7 +144,7 @@ final class VvvfSynth {
             slotPhase = frac(slotPhase + SLOT_RATIO * f / FS);
             double noise = random.nextDouble(-1.7320508, 1.7320508);
             double motor = HUM * Math.sin(4 * Math.PI * phase) * Math.min(0.3 + spd, 1)
-                + WHINE * Math.sin(2 * Math.PI * slotPhase) * Math.sqrt(spd);
+                + WHINE * Math.sin(2 * Math.PI * slotPhase) * (0.5 + 0.5 * Math.sqrt(spd));
             double src = current + ripple + gear + motor * gate;
             double body = src;
             for (int r = 0; r < resonances.length; r++) {
