@@ -69,11 +69,13 @@ public class DepartureBellScreen extends Screen {
         int x = width / 2 - 100;
         int y = top() + 14;
         if (trainBell() != null) {
-            String[] tabs = {"発車ベル", "車内放送", "MH"};
-            for (int i = 0; i < tabs.length; i++) {
+            // Tab i edits SoundChunk target i (BELL, ANNOUNCEMENT, MUSIC_HORN, APPROACH).
+            String[] tabs = {"発車ベル", "車内放送", "MH", "接近メロディ"};
+            int[] widths = {50, 50, 34, 60};
+            for (int i = 0, tx = x; i < tabs.length; tx += widths[i] + 2, i++) {
                 int target = i;
                 addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
-                    .bounds(x + 68 * i, y, 64, 20).build()).active = tab != i;
+                    .bounds(tx, y, widths[i], 20).build()).active = tab != i;
             }
         } else if (bell() instanceof AdvancedStationBlockEntity station) {
             if (tab != SoundChunk.APPROACH) {
@@ -190,8 +192,8 @@ public class DepartureBellScreen extends Screen {
         BellSound bell = bell();
         DepartureBellBlockEntity trainBell = trainBell();
         return bell == null ? "" : bell.soundHash() + bell.melody()
-            + (bell instanceof AdvancedStationBlockEntity station
-                ? station.twoWay() + "" + station.approach() + station.approachChime() : "")
+            + bell.approach() + bell.approachChime()
+            + (bell instanceof AdvancedStationBlockEntity station && station.twoWay())
             + (trainBell == null ? "" : trainBell.announcements() + "" + trainBell.musicHorn());
     }
 
@@ -204,8 +206,7 @@ public class DepartureBellScreen extends Screen {
             return bell instanceof DepartureBellBlockEntity be && be.musicHorn() != null ? be.musicHorn().hash() : null;
         }
         if (tab == SoundChunk.APPROACH) {
-            return bell instanceof AdvancedStationBlockEntity station && station.approach() != null
-                ? station.approach().hash() : null;
+            return bell.approach() != null ? bell.approach().hash() : null;
         }
         return bell.hasSound() ? bell.soundHash() : null;
     }
@@ -340,7 +341,8 @@ public class DepartureBellScreen extends Screen {
                 g.drawCenteredString(font, "列車に組み込むと、運転士が M で鳴らせます", cx, y + 48, GREY);
             }
             if (tab == SoundChunk.APPROACH && status.getString().isEmpty()) {
-                g.drawCenteredString(font, "ここに停まる列車が近づくと、駅で鳴ります", cx, y + 48, GREY);
+                g.drawCenteredString(font, trainBell() != null ? "近くの駅（32 ブロック以内）に停まる列車が近づくと鳴ります"
+                    : "ここに停まる列車が近づくと、駅で鳴ります", cx, y + 48, GREY);
             }
             g.drawCenteredString(font, pcm != null ? "選択中: " + fileName + " (" + seconds(pcm.length) + ")"
                 : "mp3 / wav / ogg をここへドラッグ＆ドロップしても選べます", cx, y - 12, GREY);
@@ -356,10 +358,10 @@ public class DepartureBellScreen extends Screen {
             Clip horn = be.musicHorn();
             return horn == null ? "内蔵ミュージックホーン" : horn.name() + " (" + seconds(horn.bytes()) + ")";
         }
-        if (tab == SoundChunk.APPROACH && bell instanceof AdvancedStationBlockEntity station) {
-            Clip clip = station.approach();
+        if (tab == SoundChunk.APPROACH) {
+            Clip clip = bell.approach();
             return clip != null ? clip.name() + " (" + seconds(clip.bytes()) + ")"
-                : station.approachChime() ? "内蔵チャイム" : "鳴らさない";
+                : bell.approachChime() ? "内蔵チャイム" : "鳴らさない";
         }
         if (bell.hasSound()) {
             return bell.soundName() + " (" + seconds(bell.soundBytes()) + ")";
