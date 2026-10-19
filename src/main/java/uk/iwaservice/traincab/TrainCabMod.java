@@ -26,7 +26,7 @@ public class TrainCabMod {
         modContainer.registerConfig(ModConfig.Type.CLIENT, TrainCabConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TrainCabServerConfig.SPEC);
         TrainCabItems.register(modEventBus);
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("8")
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("9")
             .playToServer(MasconPayload.TYPE, MasconPayload.STREAM_CODEC, MasconPayload::handle)
             .playToServer(ConductorAction.TYPE, ConductorAction.STREAM_CODEC, ConductorAction::handle)
             .playToClient(StationInfo.TYPE, StationInfo.STREAM_CODEC, StationInfo::handle)

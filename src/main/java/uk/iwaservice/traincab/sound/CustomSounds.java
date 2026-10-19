@@ -37,6 +37,8 @@ public final class CustomSounds {
     public static final int CHUNK_SIZE = 30000;
     /** Players this close to a ringing bell are told to play it (it is heard up to ~32 blocks away). */
     private static final double PLAY_RANGE = 64;
+    /** Same for an MH, heard up to ~64 blocks away like the horn. */
+    private static final double HORN_RANGE = 96;
     private static final double EDIT_DISTANCE_SQR = 8 * 8;
     private static final int UPLOAD_COOLDOWN_TICKS = 200;
     private static final Pattern HASH = Pattern.compile("[0-9a-f]{40}");
@@ -45,7 +47,7 @@ public final class CustomSounds {
     private static final class Upload {
         BlockPos pos;
         String name;
-        boolean announcement;
+        int target;
         byte[] data;
         int received;
     }
@@ -85,7 +87,13 @@ public final class CustomSounds {
     /** Players near {@code pos} start playing the sound {@code hash} there, or stop whatever plays there if empty. */
     public static void play(ServerLevel level, BlockPos pos, String hash) {
         Vec3 c = Vec3.atCenterOf(pos);
-        PacketDistributor.sendToPlayersNear(level, null, c.x, c.y, c.z, PLAY_RANGE, new SoundPlay(pos, hash));
+        PacketDistributor.sendToPlayersNear(level, null, c.x, c.y, c.z, PLAY_RANGE, new SoundPlay(pos, -1, hash));
+    }
+
+    /** Players near {@code driver} hear the sound {@code hash} follow them (the train's MH). */
+    public static void playFollowing(ServerPlayer driver, String hash) {
+        PacketDistributor.sendToPlayersNear(driver.serverLevel(), null, driver.getX(), driver.getY(), driver.getZ(),
+            HORN_RANGE, new SoundPlay(BlockPos.ZERO, driver.getId(), hash));
     }
 
     /** The departure bell at {@code pos} if {@code player} may change it, else null. */
@@ -111,7 +119,7 @@ public final class CustomSounds {
             if (be == null) {
                 return;
             }
-            if (chunk.announcement() && be.announcements().size() >= DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
+            if (chunk.target() == SoundChunk.ANNOUNCEMENT && be.announcements().size() >= DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
                 player.displayClientMessage(Component.literal(
                     "車内放送は " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本までです"), true);
                 return;
@@ -130,7 +138,7 @@ public final class CustomSounds {
             Upload upload = new Upload();
             upload.pos = chunk.pos();
             upload.name = chunk.id();
-            upload.announcement = chunk.announcement();
+            upload.target = chunk.target();
             upload.data = new byte[chunk.total()];
             UPLOADS.put(id, upload);
         }
@@ -166,11 +174,15 @@ public final class CustomSounds {
             return;
         }
         LAST_UPLOAD.put(id, now);
-        if (!u.announcement) {
+        DepartureBellBlockEntity.Clip clip = new DepartureBellBlockEntity.Clip(hash, u.name, u.data.length);
+        if (u.target == SoundChunk.MUSIC_HORN) {
+            be.setMusicHorn(clip);
+            player.displayClientMessage(Component.literal("ミュージックホーンを「" + u.name + "」にしました"), true);
+        } else if (u.target != SoundChunk.ANNOUNCEMENT) {
             be.setSound(hash, u.name, u.data.length);
             player.displayClientMessage(Component.literal("発車ベルを「" + u.name + "」にしました"), true);
         } else if (be.announcements().size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
-            be.addAnnouncement(new DepartureBellBlockEntity.Clip(hash, u.name, u.data.length));
+            be.addAnnouncement(clip);
             player.displayClientMessage(Component.literal("車内放送「" + u.name + "」を追加しました"), true);
         }
     }
@@ -188,7 +200,7 @@ public final class CustomSounds {
             return;
         }
         for (int off = 0; off < data.length; off += CHUNK_SIZE) {
-            PacketDistributor.sendToPlayer(player, new SoundChunk(BlockPos.ZERO, hash, false, data.length, off,
+            PacketDistributor.sendToPlayer(player, new SoundChunk(BlockPos.ZERO, hash, SoundChunk.BELL, data.length, off,
                 Arrays.copyOfRange(data, off, Math.min(data.length, off + CHUNK_SIZE))));
         }
     }
