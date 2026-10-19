@@ -1,4 +1,6 @@
 {
+  "block.traincab.speaker": "Speaker",
+  "item.traincab.speaker_linker": "Speaker Linker",
   "itemGroup.traincab": "Train Cab HUD",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "Emergency Brake",

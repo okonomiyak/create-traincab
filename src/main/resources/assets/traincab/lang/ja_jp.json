@@ -1,4 +1,6 @@
 {
+  "block.traincab.speaker": "スピーカー",
+  "item.traincab.speaker_linker": "スピーカー接続ツール",
   "itemGroup.traincab": "Train Cab HUD",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "非常ブレーキ",

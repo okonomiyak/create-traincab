@@ -41,6 +41,13 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
         super(TrainCabItems.DEPARTURE_BELL_ENTITY.get(), pos, state);
     }
 
+    private final SpeakerLinks speakers = new SpeakerLinks();
+
+    @Override
+    public SpeakerLinks speakers() {
+        return speakers;
+    }
+
     @Override
     public boolean hasSound() {
         return !soundHash.isEmpty();
@@ -123,6 +130,7 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
             tag.putString("SoundName", soundName);
             tag.putInt("SoundBytes", soundBytes);
         }
+        speakers.write(tag);
         if (!announcements.isEmpty()) {
             ListTag list = new ListTag();
             for (Clip clip : announcements) {
@@ -171,6 +179,7 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
         soundHash = tag.getString("SoundHash");
         soundName = tag.getString("SoundName");
         soundBytes = tag.getInt("SoundBytes");
+        speakers.read(tag);
         announcements.clear();
         announcements.addAll(readAnnouncements(tag));
         musicHorn = readMusicHorn(tag);

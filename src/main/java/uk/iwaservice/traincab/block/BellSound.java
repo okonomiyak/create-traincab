@@ -18,4 +18,7 @@ public interface BellSound {
 
     /** Drops the uploaded sound and picks a built-in one. */
     void setBuiltin(boolean melody);
+
+    /** The スピーカー playing along with it. */
+    SpeakerLinks speakers();
 }

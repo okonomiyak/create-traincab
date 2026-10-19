@@ -32,6 +32,7 @@ import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlock;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.item.ConductorCapItem;
+import uk.iwaservice.traincab.item.SpeakerLinkerItem;
 import uk.iwaservice.traincab.mascon.ConductorPanelInteraction;
 
 import java.util.function.Supplier;
@@ -47,6 +48,13 @@ public final class TrainCabItems {
     public static final DeferredBlock<Block> CONDUCTOR_PANEL = BLOCKS.registerSimpleBlock("conductor_panel",
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL));
     public static final DeferredItem<BlockItem> CONDUCTOR_PANEL_ITEM = ITEMS.registerSimpleBlockItem(CONDUCTOR_PANEL);
+
+    /** スピーカー: plays what the 放送装置 / 高度駅 it is linked to plays (see SpeakerLinks). */
+    public static final DeferredBlock<Block> SPEAKER = BLOCKS.registerSimpleBlock("speaker",
+        BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL));
+    public static final DeferredItem<BlockItem> SPEAKER_ITEM = ITEMS.registerSimpleBlockItem(SPEAKER);
+    public static final DeferredItem<Item> SPEAKER_LINKER =
+        ITEMS.register("speaker_linker", () -> new SpeakerLinkerItem(new Item.Properties().stacksTo(1)));
 
     /** VVVFインバーター: built into a train, it makes the train sound like one (see VvvfSounds). */
     public static final DeferredBlock<Block> INVERTER = BLOCKS.registerSimpleBlock("inverter",
@@ -90,6 +98,8 @@ public final class TrainCabItems {
             output.accept(ADVANCED_STATION_ITEM.get());
             output.accept(DEPARTURE_BELL_ITEM.get());
             output.accept(CONDUCTOR_PANEL_ITEM.get());
+            output.accept(SPEAKER_ITEM.get());
+            output.accept(SPEAKER_LINKER.get());
             output.accept(INVERTER_ITEM.get());
             output.accept(CONDUCTOR_CAP.get());
         })
