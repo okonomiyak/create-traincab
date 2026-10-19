@@ -1,5 +1,6 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.infrastructure.config.AllConfigs;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -65,6 +67,8 @@ public final class VvvfSounds {
 
     // Client thread only.
     private static final Map<UUID, TrainSound> SOUNDS = new HashMap<>();
+    /** A carriage's blocks are fixed once assembled, so scan each contraption for an inverter once. */
+    private static final Map<Contraption, Boolean> HAS_INVERTER = new WeakHashMap<>();
 
     private VvvfSounds() {
     }
@@ -97,10 +101,9 @@ public final class VvvfSounds {
         }
     }
 
-    // ponytail: scans the carriage's blocks every tick; cache per entity if huge trains show up in profiling.
     private static boolean hasInverter(CarriageContraptionEntity cce) {
-        return cce.getContraption() != null && cce.getContraption().getBlocks().values().stream()
-            .anyMatch(info -> info.state().is(TrainCabItems.INVERTER.get()));
+        return cce.getContraption() != null && HAS_INVERTER.computeIfAbsent(cce.getContraption(),
+            c -> c.getBlocks().values().stream().anyMatch(info -> info.state().is(TrainCabItems.INVERTER.get())));
     }
 
     private static final class TrainSound extends AbstractSoundInstance implements TickableSoundInstance {
