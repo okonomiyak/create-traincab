@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "uk.iwaservice.traincab.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "TrainMixin",
+    "SlidingDoorMixin",
+    "CarriageContraptionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
