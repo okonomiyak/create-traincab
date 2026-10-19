@@ -10,23 +10,27 @@ import java.util.function.Supplier;
 
 /**
  * A piece of a departure bell sound ({@code total} bytes, this piece starting at {@code offset}).
- * Client → server: an upload for the bell at {@code pos}, {@code id} being its display name; {@code announcement}
- * adds it to the bell's 車内放送 instead of making it the bell's sound.
+ * Client → server: an upload for the bell at {@code pos}, {@code id} being its display name, {@code target}
+ * saying what it becomes: the bell's sound, one more 車内放送, or the MH.
  * Server → client: a download, {@code id} being its hash ({@code pos} unused).
  */
-public record SoundChunk(BlockPos pos, String id, boolean announcement, int total, int offset, byte[] data) {
+public record SoundChunk(BlockPos pos, String id, int target, int total, int offset, byte[] data) {
+
+    public static final int BELL = 0;
+    public static final int ANNOUNCEMENT = 1;
+    public static final int MUSIC_HORN = 2;
 
     public static void encode(SoundChunk chunk, FriendlyByteBuf buf) {
         buf.writeBlockPos(chunk.pos);
         buf.writeUtf(chunk.id, 64);
-        buf.writeBoolean(chunk.announcement);
+        buf.writeVarInt(chunk.target);
         buf.writeVarInt(chunk.total);
         buf.writeVarInt(chunk.offset);
         buf.writeByteArray(chunk.data);
     }
 
     public static SoundChunk decode(FriendlyByteBuf buf) {
-        return new SoundChunk(buf.readBlockPos(), buf.readUtf(64), buf.readBoolean(), buf.readVarInt(), buf.readVarInt(),
+        return new SoundChunk(buf.readBlockPos(), buf.readUtf(64), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
             buf.readByteArray(CustomSounds.CHUNK_SIZE));
     }
 

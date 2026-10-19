@@ -10,12 +10,13 @@ import java.util.function.Supplier;
 
 /**
  * Client → server: change the departure bell at {@code pos}. {@code op} is MELODY / BELL (back to that built-in
- * sound), or the index of a 車内放送 to remove.
+ * sound), MUSIC_HORN (back to the built-in MH), or the index of a 車内放送 to remove.
  */
 public record BellEdit(BlockPos pos, int op) {
 
     public static final int MELODY = -1;
     public static final int BELL = -2;
+    public static final int MUSIC_HORN = -3;
 
     public static void encode(BellEdit edit, FriendlyByteBuf buf) {
         buf.writeBlockPos(edit.pos);
@@ -37,6 +38,8 @@ public record BellEdit(BlockPos pos, int op) {
         }
         if (edit.op == MELODY || edit.op == BELL) {
             be.setBuiltin(edit.op == MELODY);
+        } else if (edit.op == MUSIC_HORN) {
+            be.setMusicHorn(null);
         } else {
             be.removeAnnouncement(edit.op);
         }

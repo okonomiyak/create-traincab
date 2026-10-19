@@ -8,6 +8,7 @@ import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.Train;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,6 +31,7 @@ import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabServerConfig;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
+import uk.iwaservice.traincab.sound.CustomSounds;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,7 +66,10 @@ public final class Conductor {
     public static final int ANNOUNCE = 4;
     /** 警笛: one blast of Create's train whistle. Driver only. */
     public static final int HORN = 5;
-    /** ミュージックホーン: a short melody, separate from the horn. Driver only. */
+    /**
+     * ミュージックホーン: a short melody, separate from the horn. Driver only. The MH sound of a departure bell built
+     * into the train if it has one.
+     */
     public static final int MUSIC_HORN = 6;
     /** 発車ベル / 発車メロディ from the nearest departure bell block. By the conductor, or the driver when one-man. */
     public static final int DEPARTURE_BELL = 7;
@@ -263,23 +268,43 @@ public final class Conductor {
         }
     }
 
-    /** 車内放送 on the first departure bell built into the train that has any. */
-    private static List<Clip> announcementsOf(Train train) {
+    /** Saved tags of the departure bells built into the train. */
+    private static List<CompoundTag> bellsOf(Train train) {
+        List<CompoundTag> bells = new ArrayList<>();
         for (Carriage carriage : train.carriages) {
             CarriageContraptionEntity cce = carriage.anyAvailableEntity();
             if (cce == null) {
                 continue;
             }
             for (StructureBlockInfo info : cce.getContraption().getBlocks().values()) {
-                if (info.state().is(TrainCabItems.DEPARTURE_BELL.get())) {
-                    List<Clip> clips = DepartureBellBlockEntity.readAnnouncements(info.nbt());
-                    if (!clips.isEmpty()) {
-                        return clips;
-                    }
+                if (info.state().is(TrainCabItems.DEPARTURE_BELL.get()) && info.nbt() != null) {
+                    bells.add(info.nbt());
                 }
             }
         }
+        return bells;
+    }
+
+    /** 車内放送 on the first departure bell built into the train that has any. */
+    private static List<Clip> announcementsOf(Train train) {
+        for (CompoundTag bell : bellsOf(train)) {
+            List<Clip> clips = DepartureBellBlockEntity.readAnnouncements(bell);
+            if (!clips.isEmpty()) {
+                return clips;
+            }
+        }
         return List.of();
+    }
+
+    /** MH of the first departure bell built into the train that has one, or null. */
+    private static Clip musicHornOf(Train train) {
+        for (CompoundTag bell : bellsOf(train)) {
+            Clip clip = DepartureBellBlockEntity.readMusicHorn(bell);
+            if (clip != null) {
+                return clip;
+            }
+        }
+        return null;
     }
 
     static void handle(ServerPlayer player, int action, int arg) {
@@ -359,7 +384,12 @@ public final class Conductor {
             }
             case MUSIC_HORN -> {
                 if (player.equals(Mascon.driverOf(train))) {
-                    MUSIC_HORNS.putIfAbsent(player, 0);
+                    Clip horn = musicHornOf(train);
+                    if (horn != null && CustomSounds.exists(player.server, horn.hash())) {
+                        CustomSounds.playFollowing(player, horn.hash());
+                    } else {
+                        MUSIC_HORNS.putIfAbsent(player, 0);
+                    }
                 }
             }
             case ANNOUNCE -> {

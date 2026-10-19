@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
 import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.client.sounds.SoundManager;
@@ -13,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.valueproviders.ConstantFloat;
+import net.minecraft.world.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
@@ -37,8 +39,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Client side of uploaded departure bell sounds: downloads them from the server into a cache
- * ({@code .minecraft/traincab/sound_cache/}, by hash) and plays them positioned at the bell, or unpositioned
- * for a 車内放送 (keyed by a null position).
+ * ({@code .minecraft/traincab/sound_cache/}, by hash) and plays them: at the bell (keyed by its BlockPos),
+ * following the driver for an MH (keyed by their entity id), or unpositioned for a 車内放送 (keyed by null).
  */
 public final class CustomSoundClient {
 
@@ -46,6 +48,8 @@ public final class CustomSoundClient {
     private static final ResourceLocation LOCATION = new ResourceLocation(TrainCabMod.MODID, "departure_bell");
     /** Above 1 only widens the range: heard up to ~32 blocks away, like the built-in bell. */
     private static final float VOLUME = 2f;
+    /** An MH carries like the horn: ~64 blocks. */
+    private static final float HORN_VOLUME = 4f;
     /** Refuse bigger downloads (the server allows at most 300 s = 13 MB). */
     private static final int MAX_BYTES = 16 << 20;
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -56,8 +60,8 @@ public final class CustomSoundClient {
     private static final Map<String, byte[]> DOWNLOADS = new HashMap<>();
     private static final Set<String> REQUESTED = new HashSet<>();
     /** Bells told to play a sound still downloading. */
-    private static final Map<BlockPos, String> WAITING = new HashMap<>();
-    private static final Map<BlockPos, SoundInstance> PLAYING = new HashMap<>();
+    private static final Map<Object, String> WAITING = new HashMap<>();
+    private static final Map<Object, SoundInstance> PLAYING = new HashMap<>();
     private static SoundInstance preview;
 
     private CustomSoundClient() {
@@ -135,7 +139,7 @@ public final class CustomSoundClient {
     }
 
     public static void onPlay(SoundPlay play) {
-        play(play.pos(), play.hash());
+        play(play.entityId() >= 0 ? (Object) play.entityId() : play.pos(), play.hash());
     }
 
     /** A 車内放送: heard the same anywhere on board, replacing the previous one. */
@@ -143,9 +147,9 @@ public final class CustomSoundClient {
         play(null, hash);
     }
 
-    private static void play(@Nullable BlockPos pos, String hash) {
-        WAITING.remove(pos);
-        SoundInstance playing = PLAYING.remove(pos);
+    private static void play(@Nullable Object at, String hash) {
+        WAITING.remove(at);
+        SoundInstance playing = PLAYING.remove(at);
         if (playing != null) {
             Minecraft.getInstance().getSoundManager().stop(playing);
         }
@@ -154,18 +158,18 @@ public final class CustomSoundClient {
         }
         byte[] pcm = get(hash);
         if (pcm != null) {
-            start(pos, pcm);
+            start(at, pcm);
         } else if (CustomSounds.isHash(hash)) {
             // ponytail: starts from the beginning once downloaded, i.e. late; bells prefetch on load and the
             // conductor's menu prefetches, so only other passengers' first play is late.
-            WAITING.put(pos, hash);
+            WAITING.put(at, hash);
             prefetch(hash);
         }
     }
 
-    private static void start(@Nullable BlockPos pos, byte[] pcm) {
-        SoundInstance sound = new PcmSound(pcm, pos);
-        PLAYING.put(pos, sound);
+    private static void start(@Nullable Object at, byte[] pcm) {
+        SoundInstance sound = new PcmSound(pcm, at);
+        PLAYING.put(at, sound);
         Minecraft.getInstance().getSoundManager().play(sound);
     }
 
@@ -181,31 +185,57 @@ public final class CustomSoundClient {
         }
     }
 
-    static void upload(BlockPos pos, String name, boolean announcement, byte[] pcm) {
+    /** {@code target}: one of the SoundChunk targets. */
+    static void upload(BlockPos pos, String name, int target, byte[] pcm) {
         store(CustomSounds.sha1(pcm), pcm);
         for (int off = 0; off < pcm.length; off += CustomSounds.CHUNK_SIZE) {
-            TrainCabNetwork.CHANNEL.sendToServer(new SoundChunk(pos, name, announcement, pcm.length, off,
+            TrainCabNetwork.CHANNEL.sendToServer(new SoundChunk(pos, name, target, pcm.length, off,
                 Arrays.copyOfRange(pcm, off, Math.min(pcm.length, off + CustomSounds.CHUNK_SIZE))));
         }
     }
 
-    /** Streams raw PCM; it needs no sounds.json entry since it resolves to its own Sound. */
-    private static final class PcmSound extends AbstractSoundInstance {
+    /**
+     * Streams raw PCM; it needs no sounds.json entry since it resolves to its own Sound. Played at a BlockPos,
+     * following the entity with an Integer id, or unpositioned for null.
+     */
+    private static final class PcmSound extends AbstractSoundInstance implements TickableSoundInstance {
 
         private final byte[] pcm;
+        @Nullable
+        private final Object at;
 
-        PcmSound(byte[] pcm, @Nullable BlockPos pos) {
+        PcmSound(byte[] pcm, @Nullable Object at) {
             super(LOCATION, SoundSource.BLOCKS, SoundInstance.createUnseededRandom());
             this.pcm = pcm;
-            if (pos == null) {
+            this.at = at;
+            if (at == null) {
                 relative = true;
                 attenuation = Attenuation.NONE;
             } else {
+                volume = at instanceof BlockPos ? VOLUME : HORN_VOLUME;
+                tick();
+            }
+        }
+
+        @Override
+        public void tick() {
+            if (at instanceof BlockPos pos) {
                 x = pos.getX() + 0.5;
                 y = pos.getY() + 0.5;
                 z = pos.getZ() + 0.5;
-                volume = VOLUME;
+            } else if (at instanceof Integer id && Minecraft.getInstance().level != null) {
+                Entity entity = Minecraft.getInstance().level.getEntity(id);
+                if (entity != null) {
+                    x = entity.getX();
+                    y = entity.getY();
+                    z = entity.getZ();
+                }
             }
+        }
+
+        @Override
+        public boolean isStopped() {
+            return false;
         }
 
         @Override

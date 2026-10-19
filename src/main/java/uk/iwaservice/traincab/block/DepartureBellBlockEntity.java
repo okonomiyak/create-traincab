@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * The sound a departure bell plays: an uploaded one (see CustomSounds), or none for the built-in bell / melody.
- * Also the 車内放送 the conductor can pick from with N once the bell is built into a train.
+ * Built into a train it also carries the 車内放送 picked from with N, and the sound M plays as the MH.
  */
 public class DepartureBellBlockEntity extends BlockEntity {
 
@@ -33,6 +33,8 @@ public class DepartureBellBlockEntity extends BlockEntity {
     private String soundName = "";
     private int soundBytes;
     private final List<Clip> announcements = new ArrayList<>();
+    @Nullable
+    private Clip musicHorn;
 
     public DepartureBellBlockEntity(BlockPos pos, BlockState state) {
         super(TrainCabItems.DEPARTURE_BELL_ENTITY.get(), pos, state);
@@ -77,6 +79,17 @@ public class DepartureBellBlockEntity extends BlockEntity {
         }
     }
 
+    @Nullable
+    public Clip musicHorn() {
+        return musicHorn;
+    }
+
+    /** null: back to the built-in MH. */
+    public void setMusicHorn(@Nullable Clip clip) {
+        musicHorn = clip;
+        changed();
+    }
+
     public void setBuiltin(boolean melody) {
         soundHash = "";
         soundName = "";
@@ -109,6 +122,23 @@ public class DepartureBellBlockEntity extends BlockEntity {
             }
             tag.put("Announcements", list);
         }
+        if (musicHorn != null) {
+            CompoundTag c = new CompoundTag();
+            c.putString("Hash", musicHorn.hash());
+            c.putString("Name", musicHorn.name());
+            c.putInt("Bytes", musicHorn.bytes());
+            tag.put("MusicHorn", c);
+        }
+    }
+
+    /** The MH in a bell's saved tag, or null; Create keeps that tag for bells built into a train. */
+    @Nullable
+    public static Clip readMusicHorn(@Nullable CompoundTag tag) {
+        if (tag == null || !tag.contains("MusicHorn", Tag.TAG_COMPOUND)) {
+            return null;
+        }
+        CompoundTag c = tag.getCompound("MusicHorn");
+        return new Clip(c.getString("Hash"), c.getString("Name"), c.getInt("Bytes"));
     }
 
     /** The 車内放送 in a bell's saved tag; Create keeps that tag for bells built into a train. */
@@ -131,6 +161,7 @@ public class DepartureBellBlockEntity extends BlockEntity {
         soundBytes = tag.getInt("SoundBytes");
         announcements.clear();
         announcements.addAll(readAnnouncements(tag));
+        musicHorn = readMusicHorn(tag);
         // Download it while the player is still walking up, not when the conductor rings it.
         if (level != null && level.isClientSide && hasSound()) {
             CustomSoundClient.prefetch(soundHash);
