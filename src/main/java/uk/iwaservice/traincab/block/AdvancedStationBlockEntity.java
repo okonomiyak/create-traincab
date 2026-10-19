@@ -60,6 +60,8 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     private UUID approachedTrain;
     /** Tick of the built-in chime being played, or -1. */
     private int chimeTick = -1;
+    /** Game time the uploaded 接近メロディ ends, so stopping it can't cut off a departure melody played after it. */
+    private long approachEnds;
 
     public AdvancedStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -85,6 +87,11 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         // The lamp turns green once the block ahead is free and the melody has finished.
         boolean clear = (signal == null || signal.cachedStates.getFirst() != SignalState.RED)
             && (train == null || !DepartureBell.isRinging(train));
+        // The train it played for has stopped here: the 接近メロディ has done its job (another train already
+        // standing at a 双方向 station doesn't cut it off).
+        if (train != null && train.id.equals(approachedTrain)) {
+            stopApproach();
+        }
         Train approaching = station == null ? null : approachingTrain(station);
         if (approaching == null) {
             approachedTrain = null;
@@ -109,10 +116,19 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         return Mascon.approaching(station, range);
     }
 
+    private void stopApproach() {
+        chimeTick = -1;
+        if (level.getGameTime() < approachEnds && level instanceof ServerLevel server) {
+            CustomSounds.play(server, worldPosition, "");
+        }
+        approachEnds = 0;
+    }
+
     private void playApproach() {
         if (approach != null && level instanceof ServerLevel server
             && CustomSounds.exists(server.getServer(), approach.hash())) {
             CustomSounds.play(server, worldPosition, approach.hash());
+            approachEnds = level.getGameTime() + CustomSounds.ticks(approach.bytes());
         } else if (approach == null && approachChime) {
             chimeTick = 0;
         }
