@@ -1,5 +1,8 @@
 package uk.iwaservice.traincab.block;
 
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
+
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.graph.EdgeData;
@@ -60,6 +63,14 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     /** The train the 接近メロディ last played for, so it plays once per approach. */
     @Nullable
     private UUID approachedTrain;
+    private static final Logger LOGGER = LogUtils.getLogger();
+    /**
+     * Each placement makes Create split the signal block and recompute every track crossing in it, which is slow on
+     * big networks, so a station that keeps failing to keep its signal only retries this often.
+     */
+    private static final int PLACE_INTERVAL = 600;
+    /** Game time before which the departure signal is not placed again. */
+    private long placeAfter;
     /** Tick of the built-in chime being played, or -1. */
     private int chimeTick = -1;
     /** Game time the uploaded 接近メロディ ends, so stopping it can't cut off a departure melody played after it. */
@@ -175,6 +186,10 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
                 && Math.abs(signal.position - station.position - SIGNAL_OFFSET) < 1e-3) {
                 return signal;
             }
+            if (level.getGameTime() < placeAfter) {
+                return null;
+            }
+            placeAfter = level.getGameTime() + PLACE_INTERVAL;
             removeSignal();
             return placeSignal(graph, station);
         }
@@ -207,6 +222,8 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         signal.blockEntityAdded(this, false);
         graph.addPoint(EdgePointType.SIGNAL, signal);
         setChanged();
+        // Normally once per station; many of these in the log mean something keeps taking the signal away.
+        LOGGER.info("高度駅 {} placed its departure signal", worldPosition);
         return signal;
     }
 
