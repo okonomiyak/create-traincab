@@ -1,0 +1,14 @@
+{
+  "key.categories.traincab": "Train Cab HUD",
+  "key.traincab.emergency": "非常ブレーキ",
+  "key.traincab.reverser_forward": "レバーサを前側へ（停車中のみ）",
+  "key.traincab.reverser_backward": "レバーサを後側へ（停車中のみ）",
+  "key.traincab.doors": "戸閉/戸開（車掌）",
+  "key.traincab.bell": "合図ベル（車掌⇔運転士）",
+  "item.traincab.conductor_cap": "車掌帽",
+  "block.traincab.conductor_panel": "車掌ブロック",
+  "key.traincab.announce": "車内放送（車掌）",
+  "block.traincab.advanced_cab": "高度運転台",
+  "key.traincab.horn": "警笛（運転士）",
+  "key.traincab.music_horn": "ミュージックホーン（運転士）"
+}

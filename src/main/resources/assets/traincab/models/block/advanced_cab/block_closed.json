@@ -1,0 +1,7 @@
+{
+  "parent": "create:block/controls/block_closed",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "1_7": "traincab:block/advanced_cab"
+  }
+}

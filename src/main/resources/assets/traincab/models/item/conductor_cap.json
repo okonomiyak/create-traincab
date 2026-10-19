@@ -1,0 +1,14 @@
+{
+  "loader": "forge:separate_transforms",
+  "base": {
+    "parent": "minecraft:item/generated",
+    "textures": {
+      "layer0": "traincab:item/conductor_cap"
+    }
+  },
+  "perspectives": {
+    "head": {
+      "parent": "traincab:item/conductor_cap_worn"
+    }
+  }
+}

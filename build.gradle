@@ -1,0 +1,70 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.141'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = "${mod_id}-${minecraft_version}-forge"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+legacyForge {
+    version = project.forge_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+// Adds the mixin config to dev runs. The mixin targets
+// Create's own (never obfuscated) method names with remap = false, so no refmap is needed.
+mixin {
+    config "${mod_id}.mixins.json"
+}
+
+repositories {
+    // Create, Ponder (which also ships Catnip) and Flywheel
+    maven { url = 'https://maven.createmod.net' }
+    // Registrate, which Create's public API classes reference
+    maven { url = 'https://maven.ithundxr.dev/mirror' }
+}
+
+dependencies {
+    // Hard dependency on Create, matching the "mandatory" entry in mods.toml. Versions are the ones
+    // Create 6.0.8 jar-in-jars; the "slim" jar leaves those out, so they are listed explicitly.
+    modImplementation "com.simibubi.create:create-${minecraft_version}:${create_version}:slim"
+    modImplementation "net.createmod.ponder:Ponder-Forge-${minecraft_version}:${ponder_version}"
+    modImplementation "com.tterrag.registrate:Registrate:${registrate_version}"
+    modCompileOnly "dev.engine-room.flywheel:flywheel-forge-api-${minecraft_version}:${flywheel_version}"
+    modRuntimeOnly "dev.engine-room.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}"
+}
+
+// mods.toml's version="${file.jarVersion}" reads Implementation-Version. MixinConfigs is how Forge 1.20.1
+// finds the mixin config in a production jar (the mixin {} block above only covers dev runs).
+tasks.named('jar') {
+    manifest {
+        attributes('Implementation-Version': project.version, 'MixinConfigs': "${mod_id}.mixins.json")
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
