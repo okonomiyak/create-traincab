@@ -28,7 +28,8 @@ import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
 /**
- * Right-click on a departure bell (sneak-right-click on a 高度駅, which only has the 発車ベル tab). 発車ベル tab: pick a local mp3 / wav / ogg, preview it and upload it, or go back to
+ * Right-click on a departure bell (sneak-right-click on a 高度駅, which has the 発車メロディ and 接近メロディ tabs
+ * and its 停車する向き instead). 発車ベル tab: pick a local mp3 / wav / ogg, preview it and upload it, or go back to
  * a built-in sound. 車内放送 tab: the sounds the conductor can pick from with N once the bell is built into a train.
  * MH tab: like the 発車ベル tab, for the sound the driver plays with M once the bell is built into a train.
  */
@@ -73,13 +74,22 @@ public class DepartureBellScreen extends Screen {
                 addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
                     .bounds(x + 68 * i, y, 64, 20).build()).active = tab != i;
             }
+        } else if (bell() instanceof AdvancedStationBlockEntity station) {
+            if (tab != SoundChunk.APPROACH) {
+                tab = SoundChunk.BELL;
+            }
+            String[] tabs = {"発車メロディ", "接近メロディ"};
+            int[] targets = {SoundChunk.BELL, SoundChunk.APPROACH};
+            for (int i = 0; i < tabs.length; i++) {
+                int target = targets[i];
+                addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
+                    .bounds(x + 102 * i, y, 98, 20).build()).active = tab != target;
+            }
+            addRenderableWidget(Button.builder(
+                Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
+                b -> TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y + 168, 200, 20).build());
         } else {
             tab = SoundChunk.BELL;
-            if (bell() instanceof AdvancedStationBlockEntity station) {
-                addRenderableWidget(Button.builder(
-                    Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
-                    b -> TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y, 200, 20).build());
-            }
         }
         if (tab == SoundChunk.ANNOUNCEMENT) {
             initAnnouncements(x, y + 50, trainBell());
@@ -89,7 +99,7 @@ public class DepartureBellScreen extends Screen {
         shown = contents();
     }
 
-    /** The 発車ベル or MH tab. */
+    /** The 発車ベル, MH or 接近メロディ tab. */
     private void initSingle(int x, int y, BellSound bell) {
         addRenderableWidget(Button.builder(Component.literal("ファイルを選ぶ…"), b -> choose())
             .bounds(x, y, 200, 20).build()).active = !loading;
@@ -102,6 +112,11 @@ public class DepartureBellScreen extends Screen {
         if (tab == SoundChunk.MUSIC_HORN) {
             addRenderableWidget(Button.builder(Component.literal("内蔵 MH に戻す"), b -> builtin(BellEdit.MUSIC_HORN))
                 .bounds(x, y + 62, 200, 20).build());
+        } else if (tab == SoundChunk.APPROACH) {
+            addRenderableWidget(Button.builder(Component.literal("内蔵チャイム"), b -> builtin(BellEdit.APPROACH_CHIME))
+                .bounds(x, y + 62, 98, 20).build());
+            addRenderableWidget(Button.builder(Component.literal("鳴らさない"), b -> builtin(BellEdit.APPROACH_OFF))
+                .bounds(x + 102, y + 62, 98, 20).build());
         } else {
             addRenderableWidget(Button.builder(Component.literal("内蔵メロディ"), b -> builtin(BellEdit.MELODY))
                 .bounds(x, y + 62, 98, 20).build());
@@ -154,7 +169,8 @@ public class DepartureBellScreen extends Screen {
         BellSound bell = bell();
         DepartureBellBlockEntity trainBell = trainBell();
         return bell == null ? "" : bell.soundHash() + bell.melody()
-            + (bell instanceof AdvancedStationBlockEntity station && station.twoWay())
+            + (bell instanceof AdvancedStationBlockEntity station
+                ? station.twoWay() + "" + station.approach() + station.approachChime() : "")
             + (trainBell == null ? "" : trainBell.announcements() + "" + trainBell.musicHorn());
     }
 
@@ -165,6 +181,10 @@ public class DepartureBellScreen extends Screen {
         }
         if (tab == SoundChunk.MUSIC_HORN) {
             return bell instanceof DepartureBellBlockEntity be && be.musicHorn() != null ? be.musicHorn().hash() : null;
+        }
+        if (tab == SoundChunk.APPROACH) {
+            return bell instanceof AdvancedStationBlockEntity station && station.approach() != null
+                ? station.approach().hash() : null;
         }
         return bell.hasSound() ? bell.soundHash() : null;
     }
@@ -298,6 +318,9 @@ public class DepartureBellScreen extends Screen {
             if (tab == SoundChunk.MUSIC_HORN && status.getString().isEmpty()) {
                 g.drawCenteredString(font, "列車に組み込むと、運転士が M で鳴らせます", cx, y + 48, GREY);
             }
+            if (tab == SoundChunk.APPROACH && status.getString().isEmpty()) {
+                g.drawCenteredString(font, "ここに停まる列車が近づくと、駅で鳴ります", cx, y + 48, GREY);
+            }
             g.drawCenteredString(font, pcm != null ? "選択中: " + fileName + " (" + seconds(pcm.length) + ")"
                 : "mp3 / wav / ogg をここへドラッグ＆ドロップしても選べます", cx, y - 12, GREY);
             g.drawCenteredString(font, status, cx, y + 48, GREY);
@@ -311,6 +334,11 @@ public class DepartureBellScreen extends Screen {
         if (tab == SoundChunk.MUSIC_HORN && bell instanceof DepartureBellBlockEntity be) {
             Clip horn = be.musicHorn();
             return horn == null ? "内蔵ミュージックホーン" : horn.name() + " (" + seconds(horn.bytes()) + ")";
+        }
+        if (tab == SoundChunk.APPROACH && bell instanceof AdvancedStationBlockEntity station) {
+            Clip clip = station.approach();
+            return clip != null ? clip.name() + " (" + seconds(clip.bytes()) + ")"
+                : station.approachChime() ? "内蔵チャイム" : "鳴らさない";
         }
         if (bell.hasSound()) {
             return bell.soundName() + " (" + seconds(bell.soundBytes()) + ")";

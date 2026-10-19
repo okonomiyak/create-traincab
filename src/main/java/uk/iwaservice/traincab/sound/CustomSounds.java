@@ -12,6 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import org.slf4j.Logger;
 import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.mascon.TrainCabNetwork;
@@ -119,8 +120,9 @@ public final class CustomSounds {
         if (chunk.offset() == 0) {
             UPLOADS.remove(id);
             BellSound be = editable(player, chunk.pos());
-            // 車内放送 and MH belong to departure bell blocks, which can be built into a train.
-            if (be == null || chunk.target() != SoundChunk.BELL && !(be instanceof DepartureBellBlockEntity)) {
+            // 車内放送 and MH belong to departure bell blocks, which can be built into a train; 接近メロディ to a 高度駅.
+            if (be == null || (chunk.target() == SoundChunk.APPROACH ? !(be instanceof AdvancedStationBlockEntity)
+                : chunk.target() != SoundChunk.BELL && !(be instanceof DepartureBellBlockEntity))) {
                 return;
             }
             if (chunk.target() == SoundChunk.ANNOUNCEMENT
@@ -183,6 +185,11 @@ public final class CustomSounds {
         if (u.target == SoundChunk.BELL) {
             be.setSound(hash, u.name, u.data.length);
             player.displayClientMessage(Component.literal("発車ベルを「" + u.name + "」にしました"), true);
+        } else if (u.target == SoundChunk.APPROACH) {
+            if (be instanceof AdvancedStationBlockEntity station) {
+                station.setApproach(clip, true);
+                player.displayClientMessage(Component.literal("接近メロディを「" + u.name + "」にしました"), true);
+            }
         } else if (!(be instanceof DepartureBellBlockEntity bell)) {
             return;
         } else if (u.target == SoundChunk.MUSIC_HORN) {

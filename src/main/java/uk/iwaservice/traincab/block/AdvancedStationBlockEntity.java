@@ -14,12 +14,19 @@ import com.simibubi.create.content.trains.station.StationBlockEntity;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 import uk.iwaservice.traincab.client.CustomSoundClient;
+import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 import uk.iwaservice.traincab.mascon.DepartureBell;
+import uk.iwaservice.traincab.mascon.Mascon;
+import uk.iwaservice.traincab.sound.CustomSounds;
 
 /**
  * Create's station plus the departure melody it plays (see AdvancedStationBlock) and a departure signal: a Create
@@ -30,6 +37,11 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
 
     /** How far past the station, along the track, the departure signal stands. */
     private static final double SIGNAL_OFFSET = 1;
+    /** Built-in 接近メロディ: {tick, note-block note (0 = F#3 .. 24 = F#5)}, a rising chime played twice. */
+    private static final int[][] CHIME = {
+        {0, 10}, {4, 14}, {8, 17}, {12, 22}, {24, 10}, {28, 14}, {32, 17}, {36, 22},
+    };
+    private static final int CHIME_LENGTH = 48;
 
     private String soundHash = "";
     private String soundName = "";
@@ -39,6 +51,15 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     private UUID signalId;
     /** 双方向: trains may stop here travelling either way (see GlobalStationMixin). */
     private boolean twoWay;
+    /** 接近メロディ: an uploaded sound, else the built-in chime if approachChime, else none. */
+    @Nullable
+    private Clip approach;
+    private boolean approachChime = true;
+    /** The train the 接近メロディ last played for, so it plays once per approach. */
+    @Nullable
+    private UUID approachedTrain;
+    /** Tick of the built-in chime being played, or -1. */
+    private int chimeTick = -1;
 
     public AdvancedStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -47,7 +68,11 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     @Override
     public void tick() {
         super.tick();
-        if (level.isClientSide || level.getGameTime() % 10 != 0) {
+        if (level.isClientSide) {
+            return;
+        }
+        tickChime();
+        if (level.getGameTime() % 10 != 0) {
             return;
         }
         SignalBoundary signal = departureSignal();
@@ -60,9 +85,53 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         // The lamp turns green once the block ahead is free and the melody has finished.
         boolean clear = (signal == null || signal.cachedStates.getFirst() != SignalState.RED)
             && (train == null || !DepartureBell.isRinging(train));
+        Train approaching = station == null ? null : approachingTrain(station);
+        if (approaching == null) {
+            approachedTrain = null;
+        } else if (!approaching.id.equals(approachedTrain)) {
+            approachedTrain = approaching.id;
+            playApproach();
+        }
         BlockState state = getBlockState();
         if (state.hasProperty(AdvancedStationBlock.CLEAR) && state.getValue(AdvancedStationBlock.CLEAR) != clear) {
             level.setBlock(worldPosition, state.setValue(AdvancedStationBlock.CLEAR, clear), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /** A train on its way to stop here and close enough for the 接近メロディ: scheduled, or driven with a mascon. */
+    @Nullable
+    private static Train approachingTrain(GlobalStation station) {
+        double range = TrainCabServerConfig.approachDistance;
+        Train train = station.getNearestTrain();
+        if (train != null && train.navigation.destination == station && train.navigation.distanceToDestination < range) {
+            return train;
+        }
+        return Mascon.approaching(station, range);
+    }
+
+    private void playApproach() {
+        if (approach != null && level instanceof ServerLevel server
+            && CustomSounds.exists(server.getServer(), approach.hash())) {
+            CustomSounds.play(server, worldPosition, approach.hash());
+        } else if (approach == null && approachChime) {
+            chimeTick = 0;
+        }
+    }
+
+    private void tickChime() {
+        if (chimeTick < 0) {
+            return;
+        }
+        for (int[] note : CHIME) {
+            if (note[0] == chimeTick) {
+                float pitch = (float) Math.pow(2, (note[1] - 12) / 12.0);
+                // Volume above 1 only widens the range: heard up to ~32 blocks away, like the departure bell.
+                level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_CHIME.value(), SoundSource.BLOCKS, 2f, pitch);
+                level.playSound(null, worldPosition, SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.BLOCKS, 1f, pitch);
+            }
+        }
+        if (++chimeTick >= CHIME_LENGTH) {
+            chimeTick = -1;
         }
     }
 
@@ -144,6 +213,21 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         return twoWay;
     }
 
+    @Nullable
+    public Clip approach() {
+        return approach;
+    }
+
+    public boolean approachChime() {
+        return approachChime;
+    }
+
+    public void setApproach(@Nullable Clip clip, boolean chime) {
+        approach = clip;
+        approachChime = chime;
+        notifyUpdate();
+    }
+
     public void toggleTwoWay() {
         twoWay = !twoWay;
         notifyUpdate();
@@ -196,6 +280,14 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         super.write(tag, clientPacket);
         tag.putBoolean("Melody", melody);
         tag.putBoolean("TwoWay", twoWay);
+        tag.putBoolean("ApproachChime", approachChime);
+        if (approach != null) {
+            CompoundTag c = new CompoundTag();
+            c.putString("Hash", approach.hash());
+            c.putString("Name", approach.name());
+            c.putInt("Bytes", approach.bytes());
+            tag.put("Approach", c);
+        }
         if (signalId != null && !clientPacket) {
             tag.putUUID("DepartureSignal", signalId);
         }
@@ -214,6 +306,12 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         soundName = tag.getString("SoundName");
         soundBytes = tag.getInt("SoundBytes");
         twoWay = tag.getBoolean("TwoWay");
+        approachChime = !tag.contains("ApproachChime") || tag.getBoolean("ApproachChime");
+        CompoundTag c = tag.getCompound("Approach");
+        approach = c.contains("Hash") ? new Clip(c.getString("Hash"), c.getString("Name"), c.getInt("Bytes")) : null;
+        if (clientPacket && approach != null) {
+            CustomSoundClient.prefetch(approach.hash());
+        }
         if (!clientPacket) {
             signalId = tag.hasUUID("DepartureSignal") ? tag.getUUID("DepartureSignal") : null;
         }
