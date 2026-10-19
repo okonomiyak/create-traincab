@@ -1,4 +1,5 @@
 {
+  "itemGroup.traincab": "Train Cab HUD",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "非常ブレーキ",
   "key.traincab.reverser_forward": "レバーサを前側へ（停車中のみ）",
