@@ -7,10 +7,10 @@
   "key.traincab.bell": "Signal Bell (conductor <-> driver)",
   "item.traincab.conductor_cap": "Conductor Cap",
   "block.traincab.conductor_panel": "Conductor Panel",
-  "key.traincab.announce": "Announcement (conductor)",
+  "key.traincab.announce": "Announcement (conductor / one-man driver)",
   "block.traincab.advanced_cab": "Advanced Cab Desk",
   "key.traincab.horn": "Horn (driver)",
   "key.traincab.music_horn": "Music horn (driver)",
   "block.traincab.departure_bell": "Departure Bell",
-  "key.traincab.departure_bell": "Departure bell / melody (conductor)"
+  "key.traincab.departure_bell": "Departure bell / melody (conductor / one-man driver)"
 }

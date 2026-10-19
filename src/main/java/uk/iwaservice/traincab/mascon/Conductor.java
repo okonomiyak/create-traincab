@@ -59,16 +59,16 @@ public final class Conductor {
     public static final int BELL = 3;
     /**
      * 車内放送: chime and "次は ○○ です" for everyone on board. By the conductor, or the driver when one-man.
-     * A conductor whose train carries a departure bell with 車内放送 gets the menu to pick from instead.
+     * When the train carries a departure bell with 車内放送, they get the menu to pick from instead.
      */
     public static final int ANNOUNCE = 4;
     /** 警笛: one blast of Create's train whistle. Driver only. */
     public static final int HORN = 5;
     /** ミュージックホーン: a short melody, separate from the horn. Driver only. */
     public static final int MUSIC_HORN = 6;
-    /** 発車ベル / 発車メロディ from the nearest departure bell block. Conductor only. */
+    /** 発車ベル / 発車メロディ from the nearest departure bell block. By the conductor, or the driver when one-man. */
     public static final int DEPARTURE_BELL = 7;
-    /** The conductor's pick from the 車内放送 menu: arg is its index, or -1 for the usual chime and text. */
+    /** The pick from the 車内放送 menu: arg is its index, or -1 for the usual chime and text. */
     public static final int ANNOUNCE_CLIP = 8;
 
     private static final ResourceLocation WHISTLE_SOUND = new ResourceLocation("create", "whistle_train");
@@ -222,10 +222,13 @@ public final class Conductor {
         }
     }
 
-    /** One-man trains may always depart; with a conductor the doors must have been opened and closed again. */
+    /**
+     * Not while the departure bell rings. Otherwise one-man trains may always depart; with a conductor the doors
+     * must have been opened and closed again.
+     */
     static boolean departureAllowed(Train train) {
         Crew crew = CREWS.get(train.id);
-        return crew == null || !crew.doorsOpen && crew.departureReady;
+        return !DepartureBell.isRinging(train) && (crew == null || !crew.doorsOpen && crew.departureReady);
     }
 
     /**
@@ -289,6 +292,8 @@ public final class Conductor {
         }
         Crew crew = CREWS.get(train.id);
         boolean isConductor = crew != null && player.getUUID().equals(crew.conductor);
+        // Without a conductor the driver does the conductor's announcements and departure bell.
+        boolean oneManDriver = crew == null && player.equals(Mascon.driverOf(train));
 
         switch (action) {
             case TOGGLE_DOORS -> {
@@ -348,7 +353,7 @@ public final class Conductor {
                 }
             }
             case DEPARTURE_BELL -> {
-                if (isConductor) {
+                if (isConductor || oneManDriver) {
                     DepartureBell.toggle(player, train);
                 }
             }
@@ -358,11 +363,10 @@ public final class Conductor {
                 }
             }
             case ANNOUNCE -> {
-                // The conductor announces; on a one-man train (no conductor) the driver does.
-                if (!isConductor && !(crew == null && player.equals(Mascon.driverOf(train)))) {
+                if (!isConductor && !oneManDriver) {
                     return;
                 }
-                List<Clip> clips = isConductor ? announcementsOf(train) : List.of();
+                List<Clip> clips = announcementsOf(train);
                 if (clips.isEmpty()) {
                     announce(player, train, crew, null);
                 } else {
@@ -372,7 +376,7 @@ public final class Conductor {
             }
             case ANNOUNCE_CLIP -> {
                 List<Clip> clips = announcementsOf(train);
-                if (isConductor && arg < clips.size()) {
+                if ((isConductor || oneManDriver) && arg < clips.size()) {
                     announce(player, train, crew, arg >= 0 ? clips.get(arg) : null);
                 }
             }

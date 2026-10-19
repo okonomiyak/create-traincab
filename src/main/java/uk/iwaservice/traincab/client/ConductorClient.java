@@ -81,9 +81,12 @@ public final class ConductorClient {
         if (bell && (driving || isConductor())) {
             send(Conductor.BELL);
         }
-        // The server only accepts a driver's announcement on a one-man train.
+        // The server only accepts a driver's announcement and departure bell on a one-man train.
         if (announce && (driving || isConductor())) {
             send(Conductor.ANNOUNCE);
+        }
+        if (departureBell && (driving || isConductor())) {
+            send(Conductor.DEPARTURE_BELL);
         }
 
         if (driving || !isConductor()) {
@@ -91,9 +94,6 @@ public final class ConductorClient {
         }
         if (doors) {
             send(Conductor.TOGGLE_DOORS);
-        }
-        if (departureBell) {
-            send(Conductor.DEPARTURE_BELL);
         }
         if (emergencyPressed) {
             send(Conductor.EMERGENCY);
