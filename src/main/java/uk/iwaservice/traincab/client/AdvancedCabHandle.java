@@ -23,7 +23,7 @@ import uk.iwaservice.traincab.mascon.Mascon;
 /**
  * The 高度運転台's mascon handle on a train: drawn on its own (the block's "open" model, which Create uses on
  * contraptions, leaves it out) and tilted
- * to the notch, away from the driver for power and towards them for braking. Only the driver knows the notch, so everyone
+ * to the notch, towards the driver for power and away for braking. Only the driver knows the notch, so everyone
  * else sees it in N.
  */
 public final class AdvancedCabHandle {
@@ -40,15 +40,16 @@ public final class AdvancedCabHandle {
     }
 
     /**
-     * Degrees of tilt about the x axis: power leans away from the driver (positive), braking towards them. The desk
-     * leaves little room on the power side (about 16°), so N already leans a little towards the driver.
+     * Degrees of tilt about the x axis: like a real one-handle master controller, power pulls it towards the driver
+     * (negative) and braking pushes it away. The desk leaves only about 16° on the far side, so N already leans a
+     * little towards the driver and the brake notches are smaller steps.
      */
     static float angle(int notch) {
         float n = -10f;
         if (notch > 0) {
-            return n + 5f * notch;
+            return n - 9f * notch;
         }
-        return notch == Mascon.EB ? n - 45f : n + 5f * notch;
+        return notch == Mascon.EB ? n + 25f : n - 3f * notch;
     }
 
     /** Every client tick: chases the angle of the notch this player holds the handle in, if it is theirs. */
