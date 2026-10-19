@@ -13,7 +13,7 @@
   "block.traincab.advanced_cab": "高度運転台",
   "key.traincab.horn": "警笛（運転士）",
   "key.traincab.music_horn": "ミュージックホーン（運転士）",
-  "block.traincab.departure_bell": "発車ベル",
+  "block.traincab.departure_bell": "放送装置",
   "key.traincab.departure_bell": "発車ベル/発車メロディ（車掌・ワンマン時は運転士）",
   "block.traincab.advanced_station": "高度駅"
 }

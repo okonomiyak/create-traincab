@@ -51,7 +51,8 @@ public class DepartureBellScreen extends Screen {
     private String shown;
 
     private DepartureBellScreen(BlockPos pos) {
-        super(Component.literal("発車ベルの設定"));
+        super(Component.literal(Minecraft.getInstance().level.getBlockEntity(pos) instanceof AdvancedStationBlockEntity
+            ? "高度駅の設定" : "放送装置の設定"));
         this.pos = pos;
     }
 
