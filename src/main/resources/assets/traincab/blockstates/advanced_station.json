@@ -1,7 +1,25 @@
 {
-  "variants": {
-    "": {
-      "model": "traincab:block/advanced_station"
+  "multipart": [
+    {
+      "apply": {
+        "model": "traincab:block/advanced_station"
+      }
+    },
+    {
+      "when": {
+        "clear": "false"
+      },
+      "apply": {
+        "model": "traincab:block/advanced_station_lamp_red"
+      }
+    },
+    {
+      "when": {
+        "clear": "true"
+      },
+      "apply": {
+        "model": "traincab:block/advanced_station_lamp_green"
+      }
     }
-  }
+  ]
 }

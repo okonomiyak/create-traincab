@@ -126,7 +126,7 @@ public final class DepartureBell {
         return true;
     }
 
-    static boolean isRinging(Train train) {
+    public static boolean isRinging(Train train) {
         return RINGING.containsKey(train.id);
     }
 
