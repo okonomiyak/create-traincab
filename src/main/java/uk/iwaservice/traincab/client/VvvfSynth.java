@@ -55,11 +55,13 @@ final class VvvfSynth {
     private static final double WHINE = 0.2;
     private static final double SLOT_RATIO = 22;
     // Heard from a distance / through the floor: highs fade and the reflections off the surroundings blur it.
-    private static final double DISTANT_CUTOFF = 1600;
-    /** Reflection delays in samples (~37 / 53 / 71 ms) and their feedback; how much of them is mixed in. */
-    private static final int[] ECHO_DELAYS = {1777, 2539, 3407};
-    private static final double ECHO_FEEDBACK = 0.45;
-    private static final double ECHO_MIX = 0.35;
+    private static final double DISTANT_CUTOFF = 1000;
+    /** Reflection delays in samples (~48 / 77 / 109 / 146 ms) and their feedback; how much of them is mixed in. */
+    private static final int[] ECHO_DELAYS = {2311, 3709, 5233, 7019};
+    private static final double ECHO_FEEDBACK = 0.6;
+    private static final double ECHO_MIX = 1.0;
+    /** The direct sound, quieter than the reflections' share the farther away it sounds. */
+    private static final double DIRECT = 0.55;
 
     volatile double target;
     volatile int state = COAST;
@@ -170,7 +172,7 @@ final class VvvfSynth {
             echoAt[i] = (echoAt[i] + 1) % echoes[i].length;
             wet += delayed;
         }
-        return dry + wet * ECHO_MIX / echoes.length;
+        return DIRECT * dry + wet * ECHO_MIX / echoes.length;
     }
 
     /** The table's pulse count for the current fundamental, holding the current one near a switching point. */
