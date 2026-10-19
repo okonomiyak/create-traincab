@@ -82,6 +82,7 @@ final class VvvfSynth {
     private final Biquad fanHigh = Biquad.highpass(2500);
     private final Biquad[] resonances = new Biquad[RESONANCES.length];
     private final Biquad distant = Biquad.lowpass(DISTANT_CUTOFF);
+    private final Compressor compressor = new Compressor(random);
     private final double[][] echoes = new double[ECHO_DELAYS.length][];
     private final int[] echoAt = new int[ECHO_DELAYS.length];
 
@@ -106,9 +107,10 @@ final class VvvfSynth {
             // Follow the game's 20 Hz updates smoothly (~50 ms), and fade the inverter in / out over 0.2 s.
             f += (target - f) * (1.0 / 2400);
             gate += Math.max(-1.0 / 9600, Math.min(1.0 / 9600, gateTarget - gate));
+            double cp = compressor.next();
             if (f < 1e-3 && gate <= 0) {
-                // Let the reflections ring out.
-                out[i] = (float) (distant(0) * OUT_GAIN * volume);
+                // Standing still: only the compressor, and the reflections ringing out.
+                out[i] = (float) (distant(cp) * OUT_GAIN * volume);
                 continue;
             }
             double spd = Math.min(f / F_MAX, 1);
@@ -153,7 +155,7 @@ final class VvvfSynth {
 
             double roll = rollLow.process(rollHigh.process(noise)) * ROLL_GAIN * ROLL * Math.pow(spd, 1.5);
             double fan = fanHigh.process(noise) * FAN_GAIN * FAN * Math.max(0, Math.min((f - 30) / 44, 1));
-            out[i] = (float) Math.max(-1, Math.min(1, distant(body + roll + fan) * OUT_GAIN * volume));
+            out[i] = (float) Math.max(-1, Math.min(1, distant(body + roll + fan + cp) * OUT_GAIN * volume));
         }
     }
 
@@ -202,6 +204,66 @@ final class VvvfSynth {
 
     private static double frac(double x) {
         return x - Math.floor(x);
+    }
+
+    /**
+     * The air compressor (レシプロ式, like a C-2000): every so often it runs for a while whether the train moves or
+     * not, thudding twice per crank turn over the hum of its motor, then lets its unloader valve out with a プシュー.
+     */
+    private static final class Compressor {
+
+        /** Thuds per second at full speed (two cylinders). */
+        private static final double THUD_RATE = 22;
+        private static final double LEVEL = 6;
+        /** Seconds running, then seconds off, each picked at random in [min, max). */
+        private static final double RUN_MIN = 12, RUN_MAX = 20, OFF_MIN = 30, OFF_MAX = 70;
+
+        private final SplittableRandom random;
+        private final Biquad thudHigh = Biquad.highpass(90);
+        private final Biquad thudLow = Biquad.lowpass(600);
+        private final Biquad exhaustHigh = Biquad.highpass(1200);
+        private boolean running;
+        /** Starts at a random point of its cycle so nearby trains don't run in step. */
+        private long left;
+        private double speed;
+        private double crank;
+        private double humPhase;
+        private double thud;
+        private boolean secondCylinder;
+        private double exhaust;
+
+        Compressor(SplittableRandom random) {
+            this.random = random;
+            left = (long) (random.nextDouble(0, OFF_MAX) * FS);
+        }
+
+        double next() {
+            if (--left <= 0) {
+                running = !running;
+                left = (long) ((running ? random.nextDouble(RUN_MIN, RUN_MAX) : random.nextDouble(OFF_MIN, OFF_MAX)) * FS);
+                if (!running) {
+                    exhaust = 1;
+                }
+            }
+            // Spins up and down over ~0.5 s.
+            speed += ((running ? 1 : 0) - speed) * (1.0 / (0.5 * FS));
+            if (speed < 1e-4 && exhaust < 1e-4) {
+                return 0;
+            }
+            crank += THUD_RATE * speed / FS;
+            if (crank >= 1) {
+                crank -= 1;
+                secondCylinder = !secondCylinder;
+                thud = secondCylinder ? 0.7 : 1;
+            }
+            thud *= 0.9988; // ~17 ms decay
+            exhaust *= 0.99996; // ~0.5 s decay
+            humPhase = frac(humPhase + 120 * speed / FS);
+            double noise = random.nextDouble(-1.7320508, 1.7320508);
+            double hum = 0.1 * Math.sin(2 * Math.PI * humPhase) + 0.04 * Math.sin(4 * Math.PI * humPhase);
+            return LEVEL * (thudLow.process(thudHigh.process(noise)) * thud * speed + hum * speed
+                + 0.5 * exhaustHigh.process(noise) * exhaust);
+        }
     }
 
     /** Direct form I biquad at FS, designed by the bilinear transform like scipy's butter / iirpeak. */
