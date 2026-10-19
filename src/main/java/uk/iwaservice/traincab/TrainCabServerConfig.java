@@ -43,6 +43,11 @@ public class TrainCabServerConfig {
         .comment("How far (blocks along the track) from a 高度駅 an approaching train sets off its 接近メロディ.")
         .defineInRange("approachDistance", 150.0, 16.0, 1000.0);
 
+    private static final ForgeConfigSpec.BooleanValue SCHEDULE_WHILE_DRIVING = BUILDER
+        .comment("A scheduled train driven with the mascon keeps to its schedule (stopping at its next stop counts as",
+            "arriving, setting off moves it on), so departure boards keep showing it. Off: Create pauses the schedule.")
+        .define("scheduleWhileDriving", true);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static double masconRate = 0.5;
@@ -53,6 +58,7 @@ public class TrainCabServerConfig {
     public static boolean uploadOpOnly = false;
     public static int maxSoundSeconds = 60;
     public static double approachDistance = 150.0;
+    public static boolean scheduleWhileDriving = true;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -67,5 +73,6 @@ public class TrainCabServerConfig {
         uploadOpOnly = UPLOAD_OP_ONLY.get();
         maxSoundSeconds = MAX_SOUND_SECONDS.get();
         approachDistance = APPROACH_DISTANCE.get();
+        scheduleWhileDriving = SCHEDULE_WHILE_DRIVING.get();
     }
 }

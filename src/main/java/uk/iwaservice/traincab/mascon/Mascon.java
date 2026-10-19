@@ -149,6 +149,7 @@ public final class Mascon {
             return false;
         }
         train.manualTick = false;
+        DrivenSchedule.drive(train);
 
         // Never move with the doors open (the conductor can open them anywhere once stopped).
         if (Conductor.doorsOpen(train)) {
@@ -168,6 +169,7 @@ public final class Mascon {
                 return true;
             }
             train.leaveStation();
+            DrivenSchedule.departed(train);
         }
         s.departRequested = false;
 
@@ -271,6 +273,7 @@ public final class Mascon {
         }
         if (now() - s.lastUpdate > STALE_TICKS) {
             STATES.remove(train.id);
+            DrivenSchedule.release(train);
             return null;
         }
         // Derailment and Create's own "hold space to approach station" navigation keep priority.

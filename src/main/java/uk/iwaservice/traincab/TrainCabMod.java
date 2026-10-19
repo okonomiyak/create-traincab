@@ -1,11 +1,13 @@
 package uk.iwaservice.traincab;
 
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import uk.iwaservice.traincab.client.AdvancedCabHandle;
+import uk.iwaservice.traincab.compat.crn.CrnCompat;
 import uk.iwaservice.traincab.mascon.TrainCabNetwork;
 
 @Mod(TrainCabMod.MODID)
@@ -20,6 +22,9 @@ public class TrainCabMod {
         TrainCabItems.register(FMLJavaModLoadingContext.get().getModEventBus());
         if (FMLEnvironment.dist.isClient()) {
             AdvancedCabHandle.init();
+        }
+        if (ModList.get().isLoaded(CrnCompat.MODID)) {
+            CrnCompat.init();
         }
     }
 }

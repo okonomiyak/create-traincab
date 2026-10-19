@@ -12,7 +12,7 @@ import uk.iwaservice.traincab.sound.SoundRequest;
 
 public final class TrainCabNetwork {
 
-    private static final String PROTOCOL_VERSION = "9";
+    private static final String PROTOCOL_VERSION = "10";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         new ResourceLocation(TrainCabMod.MODID, "main"),

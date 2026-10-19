@@ -45,6 +45,11 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     // Registrate, which Create's public API classes reference
     maven { url = 'https://maven.ithundxr.dev/mirror' }
+    // Create Railways Navigator, for the optional integration (compat/crn); compile only
+    exclusiveContent {
+        forRepository { maven { url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
     mavenCentral()
 }
 
@@ -59,6 +64,12 @@ dependencies {
 
     // MP3 decoder for uploaded departure bell sounds (LGPL-2.1), shipped inside our jar.
     jarJar(implementation("javazoom:jlayer:1.0.1"))
+
+    // Optional: Create Railways Navigator 0.10.0 (1.20.1-beta-0.10.0-C6, Forge). Only compiled against; the
+    // integration runs when it is installed.
+    modCompileOnly "maven.modrinth:create-railways-navigator:clWHhbZY"
+    // DragonLib 3.0.29, which CRN's classes build on
+    modCompileOnly "maven.modrinth:dragonlib:uTj9SemI"
     additionalRuntimeClasspath "javazoom:jlayer:1.0.1"
 }
 

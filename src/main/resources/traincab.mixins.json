@@ -13,7 +13,9 @@
     "GlobalStationMixin"
   ],
   "client": [
-    "StationRendererMixin"
+    "StationRendererMixin",
+    "crn.PassengerInfoInformativeMixin",
+    "crn.PassengerInfoSimpleMixin"
   ],
   "injectors": {
     "defaultRequire": 1
