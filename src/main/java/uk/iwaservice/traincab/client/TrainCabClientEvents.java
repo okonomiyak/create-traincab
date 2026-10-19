@@ -63,5 +63,6 @@ public final class TrainCabClientEvents {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         TrainDrivingState.tick();
+        VvvfSounds.tick();
     }
 }
