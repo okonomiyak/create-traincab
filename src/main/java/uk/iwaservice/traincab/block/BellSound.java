@@ -30,6 +30,11 @@ public interface BellSound {
 
     void setApproach(@Nullable Clip clip, boolean chime);
 
+    /** How far from the station the 接近メロディ starts (blocks along the track). */
+    int approachDistance();
+
+    void setApproachDistance(int distance);
+
     /** The スピーカー playing along with it. */
     SpeakerLinks speakers();
 }

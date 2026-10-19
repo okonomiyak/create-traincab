@@ -188,6 +188,17 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     }
 
     @Override
+    public int approachDistance() {
+        return approach.distance();
+    }
+
+    @Override
+    public void setApproachDistance(int distance) {
+        approach.setDistance(distance);
+        notifyUpdate();
+    }
+
+    @Override
     public void setApproach(@Nullable Clip clip, boolean chime) {
         approach.set(clip, chime);
         notifyUpdate();

@@ -117,6 +117,17 @@ public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
     }
 
     @Override
+    public int approachDistance() {
+        return approach.distance();
+    }
+
+    @Override
+    public void setApproachDistance(int distance) {
+        approach.setDistance(distance);
+        changed();
+    }
+
+    @Override
     public void setApproach(@Nullable Clip clip, boolean chime) {
         approach.set(clip, chime);
         changed();

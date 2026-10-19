@@ -90,7 +90,7 @@ public class DepartureBellScreen extends Screen {
             }
             addRenderableWidget(Button.builder(
                 Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
-                b -> TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y + 168, 200, 20).build());
+                b -> TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y + 196, 200, 20).build());
         } else {
             tab = SoundChunk.BELL;
         }
@@ -122,6 +122,16 @@ public class DepartureBellScreen extends Screen {
                 .bounds(x, y + 62, 98, 20).build());
             addRenderableWidget(Button.builder(Component.literal("鳴らさない"), b -> builtin(BellEdit.APPROACH_OFF))
                 .bounds(x + 102, y + 62, 98, 20).build());
+            // Distance row: −50 −10 [n m] +10 +50 (the label is drawn in render).
+            int[] ops = {BellEdit.APPROACH_MUCH_NEARER, BellEdit.APPROACH_NEARER, BellEdit.APPROACH_FARTHER,
+                BellEdit.APPROACH_MUCH_FARTHER};
+            String[] labels = {"−50", "−10", "+10", "+50"};
+            int[] xs = {0, 32, 138, 170};
+            for (int i = 0; i < ops.length; i++) {
+                int op = ops[i];
+                addRenderableWidget(Button.builder(Component.literal(labels[i]), b -> send(op))
+                    .bounds(x + xs[i], y + 98, 30, 20).build());
+            }
         } else {
             addRenderableWidget(Button.builder(Component.literal("内蔵メロディ"), b -> builtin(BellEdit.MELODY))
                 .bounds(x, y + 62, 98, 20).build());
@@ -129,7 +139,7 @@ public class DepartureBellScreen extends Screen {
                 .bounds(x + 102, y + 62, 98, 20).build());
         }
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-            .bounds(x, y + 94, 200, 20).build());
+            .bounds(x, y + (tab == SoundChunk.APPROACH ? 122 : 94), 200, 20).build());
     }
 
     private void initAnnouncements(int x, int y, DepartureBellBlockEntity bell) {
@@ -192,7 +202,7 @@ public class DepartureBellScreen extends Screen {
         BellSound bell = bell();
         DepartureBellBlockEntity trainBell = trainBell();
         return bell == null ? "" : bell.soundHash() + bell.melody()
-            + bell.approach() + bell.approachChime()
+            + bell.approach() + bell.approachChime() + bell.approachDistance()
             + (bell instanceof AdvancedStationBlockEntity station && station.twoWay())
             + (trainBell == null ? "" : trainBell.announcements() + "" + trainBell.musicHorn());
     }
@@ -298,8 +308,12 @@ public class DepartureBellScreen extends Screen {
     }
 
     private void builtin(int op) {
-        TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, op));
+        send(op);
         onClose();
+    }
+
+    private void send(int op) {
+        TrainCabNetwork.CHANNEL.sendToServer(new BellEdit(pos, op));
     }
 
     @Override
@@ -343,6 +357,10 @@ public class DepartureBellScreen extends Screen {
             if (tab == SoundChunk.APPROACH && status.getString().isEmpty()) {
                 g.drawCenteredString(font, trainBell() != null ? "近くの駅（32 ブロック以内）に停まる列車が近づくと鳴ります"
                     : "ここに停まる列車が近づくと、駅で鳴ります", cx, y + 48, GREY);
+            }
+            if (tab == SoundChunk.APPROACH && bell() != null) {
+                g.drawCenteredString(font, "鳴らし始める距離（線路に沿って）", cx, y + 86, GREY);
+                g.drawCenteredString(font, bell().approachDistance() + " m", cx, y + 104, WHITE);
             }
             g.drawCenteredString(font, pcm != null ? "選択中: " + fileName + " (" + seconds(pcm.length) + ")"
                 : "mp3 / wav / ogg をここへドラッグ＆ドロップしても選べます", cx, y - 12, GREY);
