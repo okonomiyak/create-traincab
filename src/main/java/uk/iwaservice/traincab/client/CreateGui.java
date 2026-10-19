@@ -21,6 +21,8 @@ final class CreateGui {
     static final int HEADER_H = 15;
     static final int FOOTER_H = 30;
     private static final int TITLE_COLOR = 0x592424;
+    /** Widest a line of text may be inside the panel's body. */
+    static final int TEXT_W = 204;
 
     private CreateGui() {
     }
@@ -44,6 +46,16 @@ final class CreateGui {
         slice(g, x, top + bodyH, w, FOOTER_H, 0, 16, 9, FOOTER_H, 4, 0);
         RenderSystem.disableBlend();
         g.drawString(font, title, x + (w - font.width(title)) / 2, y + 4, TITLE_COLOR, false);
+    }
+
+    /** Text cut to w pixels, ending in … when it had to be cut. */
+    static String fit(Font font, String text, int w) {
+        return font.width(text) <= w ? text : font.plainSubstrByWidth(text, w - font.width("…")) + "…";
+    }
+
+    /** A centred line of text, cut to the panel's width. */
+    static void centered(GuiGraphics g, Font font, String text, int cx, int y, int color) {
+        g.drawCenteredString(font, fit(font, text, TEXT_W), cx, y, color);
     }
 
     /** Draws the sw×sh texture piece at (u, v) stretched to w×h, keeping a bx / by wide border unstretched. */
@@ -89,7 +101,8 @@ final class CreateGui {
         public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
             int u = selected ? 36 : !active ? 54 : isHoveredOrFocused() ? 18 : 0;
             slice(g, getX(), getY(), width, height, u, 64, 18, 18, 1, 1);
-            g.drawCenteredString(Minecraft.getInstance().font, getMessage(), getX() + width / 2,
+            Font font = Minecraft.getInstance().font;
+            g.drawCenteredString(font, fit(font, getMessage().getString(), width - 6), getX() + width / 2,
                 getY() + (height - 8) / 2, active || selected ? 0xFFFFFF : 0xA0A0A0);
         }
     }
