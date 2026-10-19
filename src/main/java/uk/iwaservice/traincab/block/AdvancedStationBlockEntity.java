@@ -183,7 +183,9 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
             SignalBoundary signal = signalId == null ? null : graph.getPoint(EdgePointType.SIGNAL, signalId);
             if (signal != null && signal.blockEntities.getFirst().containsKey(worldPosition)
                 && signal.edgeLocation.equals(station.edgeLocation)
-                && Math.abs(signal.position - station.position - SIGNAL_OFFSET) < 1e-3) {
+                // Either side: when Create rebuilds the graph it may store the edge the other way round, which
+                // turns both positions around (the signal is still in the same place).
+                && Math.abs(Math.abs(signal.position - station.position) - SIGNAL_OFFSET) < 1e-3) {
                 return signal;
             }
             if (level.getGameTime() < placeAfter) {
