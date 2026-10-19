@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 
 /**
@@ -36,16 +37,18 @@ public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
 
     public static void handle(BellEdit edit, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            DepartureBellBlockEntity be = CustomSounds.editable(player, edit.pos);
+            BellSound be = CustomSounds.editable(player, edit.pos);
             if (be == null) {
                 return;
             }
             if (edit.op == MELODY || edit.op == BELL) {
                 be.setBuiltin(edit.op == MELODY);
+            } else if (!(be instanceof DepartureBellBlockEntity bell)) {
+                return;
             } else if (edit.op == MUSIC_HORN) {
-                be.setMusicHorn(null);
+                bell.setMusicHorn(null);
             } else {
-                be.removeAnnouncement(edit.op);
+                bell.removeAnnouncement(edit.op);
             }
         }
     }

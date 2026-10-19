@@ -13,7 +13,7 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import uk.iwaservice.traincab.TrainCabServerConfig;
-import uk.iwaservice.traincab.block.DepartureBellBlock;
+import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 import uk.iwaservice.traincab.sound.BellEdit;
@@ -27,7 +27,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 
 /**
- * Right-click on a departure bell. 発車ベル tab: pick a local mp3 / wav / ogg, preview it and upload it, or go back to
+ * Right-click on a departure bell (sneak-right-click on a 高度駅, which only has the 発車ベル tab). 発車ベル tab: pick a local mp3 / wav / ogg, preview it and upload it, or go back to
  * a built-in sound. 車内放送 tab: the sounds the conductor can pick from with N once the bell is built into a train.
  * MH tab: like the 発車ベル tab, for the sound the driver plays with M once the bell is built into a train.
  */
@@ -65,23 +65,26 @@ public class DepartureBellScreen extends Screen {
     protected void init() {
         int x = width / 2 - 100;
         int y = top() + 14;
-        String[] tabs = {"発車ベル", "車内放送", "MH"};
-        for (int i = 0; i < tabs.length; i++) {
-            int target = i;
-            addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
-                .bounds(x + 68 * i, y, 64, 20).build()).active = tab != i;
-        }
-        DepartureBellBlockEntity bell = bell();
-        if (tab == SoundChunk.ANNOUNCEMENT) {
-            initAnnouncements(x, y + 50, bell);
+        if (trainBell() != null) {
+            String[] tabs = {"発車ベル", "車内放送", "MH"};
+            for (int i = 0; i < tabs.length; i++) {
+                int target = i;
+                addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
+                    .bounds(x + 68 * i, y, 64, 20).build()).active = tab != i;
+            }
         } else {
-            initSingle(x, y + 50, bell);
+            tab = SoundChunk.BELL;
+        }
+        if (tab == SoundChunk.ANNOUNCEMENT) {
+            initAnnouncements(x, y + 50, trainBell());
+        } else {
+            initSingle(x, y + 50, bell());
         }
         shown = contents();
     }
 
     /** The 発車ベル or MH tab. */
-    private void initSingle(int x, int y, DepartureBellBlockEntity bell) {
+    private void initSingle(int x, int y, BellSound bell) {
         addRenderableWidget(Button.builder(Component.literal("ファイルを選ぶ…"), b -> choose())
             .bounds(x, y, 200, 20).build()).active = !loading;
         addRenderableWidget(Button.builder(Component.literal("試聴"), b -> previewBell())
@@ -132,22 +135,29 @@ public class DepartureBellScreen extends Screen {
         rebuildWidgets();
     }
 
-    private DepartureBellBlockEntity bell() {
-        return minecraft.level.getBlockEntity(pos) instanceof DepartureBellBlockEntity be ? be : null;
+    private BellSound bell() {
+        return minecraft.level.getBlockEntity(pos) instanceof BellSound be ? be : null;
+    }
+
+    /** The departure bell block (which also holds 車内放送 and MH), or null for a 高度駅. */
+    private DepartureBellBlockEntity trainBell() {
+        return bell() instanceof DepartureBellBlockEntity be ? be : null;
     }
 
     private String contents() {
-        DepartureBellBlockEntity bell = bell();
-        return bell == null ? "" : bell.soundHash() + bell.getBlockState() + bell.announcements() + bell.musicHorn();
+        BellSound bell = bell();
+        DepartureBellBlockEntity trainBell = trainBell();
+        return bell == null ? "" : bell.soundHash() + bell.melody()
+            + (trainBell == null ? "" : trainBell.announcements() + "" + trainBell.musicHorn());
     }
 
     /** Hash of the uploaded sound the 発車ベル / MH tab shows, or null for the built-in one. */
-    private String uploaded(DepartureBellBlockEntity bell) {
+    private String uploaded(BellSound bell) {
         if (bell == null) {
             return null;
         }
         if (tab == SoundChunk.MUSIC_HORN) {
-            return bell.musicHorn() == null ? null : bell.musicHorn().hash();
+            return bell instanceof DepartureBellBlockEntity be && be.musicHorn() != null ? be.musicHorn().hash() : null;
         }
         return bell.hasSound() ? bell.soundHash() : null;
     }
@@ -261,8 +271,8 @@ public class DepartureBellScreen extends Screen {
         int x = cx - 100;
         int y = top() + 64;
         g.drawCenteredString(font, title, cx, top(), WHITE);
-        DepartureBellBlockEntity bell = bell();
         if (tab == SoundChunk.ANNOUNCEMENT) {
+            DepartureBellBlockEntity bell = trainBell();
             g.drawCenteredString(font, "列車に組み込むと、車掌が N で選んで流せます", cx, y - 24, GREY);
             g.drawCenteredString(font, "（最大 " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本・ドラッグ＆ドロップでも追加できます）",
                 cx, y - 13, GREY);
@@ -276,7 +286,7 @@ public class DepartureBellScreen extends Screen {
             }
             g.drawCenteredString(font, status, cx, y + ROW_H * Math.max(clips.size(), 1) + 28, GREY);
         } else {
-            g.drawCenteredString(font, "現在: " + current(bell), cx, y - 24, WHITE);
+            g.drawCenteredString(font, "現在: " + current(bell()), cx, y - 24, WHITE);
             if (tab == SoundChunk.MUSIC_HORN && status.getString().isEmpty()) {
                 g.drawCenteredString(font, "列車に組み込むと、運転士が M で鳴らせます", cx, y + 48, GREY);
             }
@@ -286,18 +296,18 @@ public class DepartureBellScreen extends Screen {
         }
     }
 
-    private String current(DepartureBellBlockEntity bell) {
+    private String current(BellSound bell) {
         if (bell == null) {
             return "-";
         }
-        if (tab == SoundChunk.MUSIC_HORN) {
-            Clip horn = bell.musicHorn();
+        if (tab == SoundChunk.MUSIC_HORN && bell instanceof DepartureBellBlockEntity be) {
+            Clip horn = be.musicHorn();
             return horn == null ? "内蔵ミュージックホーン" : horn.name() + " (" + seconds(horn.bytes()) + ")";
         }
         if (bell.hasSound()) {
             return bell.soundName() + " (" + seconds(bell.soundBytes()) + ")";
         }
-        return bell.getBlockState().getValue(DepartureBellBlock.MELODY) ? "内蔵メロディ" : "内蔵ベル";
+        return bell.melody() ? "内蔵メロディ" : "内蔵ベル";
     }
 
     private static String seconds(int bytes) {

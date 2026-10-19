@@ -1,5 +1,6 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.content.trains.station.StationRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.createmod.catnip.config.ui.BaseConfigScreen;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -8,9 +9,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraft.resources.ResourceLocation;
+import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabMod;
 
 /**
@@ -29,6 +32,12 @@ public final class TrainCabClientEvents {
     static void onClientSetup(FMLClientSetupEvent event) {
         ModList.get().getModContainerById(TrainCabMod.MODID).ifPresent(container -> container.registerExtensionPoint(
             IConfigScreenFactory.class, (c, parent) -> new BaseConfigScreen(parent, TrainCabMod.MODID)));
+    }
+
+    /** The 高度駅 draws its flag like Create's station. */
+    @SubscribeEvent
+    static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(TrainCabItems.ADVANCED_STATION_ENTITY.get(), StationRenderer::new);
     }
 
     @SubscribeEvent

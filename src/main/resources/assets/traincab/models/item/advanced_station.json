@@ -1,0 +1,7 @@
+{
+  "parent": "create:block/track_station/item",
+  "textures": {
+    "0": "traincab:block/advanced_station",
+    "particle": "traincab:block/advanced_station"
+  }
+}

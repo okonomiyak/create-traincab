@@ -1,6 +1,8 @@
 package uk.iwaservice.traincab.mascon;
 
+import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.entity.Train;
+import com.simibubi.create.content.trains.station.GlobalStation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -8,9 +10,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import uk.iwaservice.traincab.TrainCabItems;
-import uk.iwaservice.traincab.block.DepartureBellBlock;
-import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
+import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
+import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.sound.CustomSounds;
 
 import java.util.HashMap;
@@ -23,8 +26,9 @@ import java.util.UUID;
  * 発車ベル / 発車メロディ. The conductor of a train stopped at a station rings the departure bell block nearest to
  * them; the doors cannot be closed until it has finished (or the conductor stops it with the same key).
  * It plays the bell's uploaded sound once (see CustomSounds), or else the built-in bell / melody.
+ * A 高度駅 is a departure bell too, and also rings by itself before a scheduled train leaves it.
  */
-final class DepartureBell {
+public final class DepartureBell {
 
     /** How far (blocks) from the conductor a departure bell block is looked for. */
     private static final int SEARCH_RANGE = 16;
@@ -53,6 +57,8 @@ final class DepartureBell {
 
     // Server thread only.
     private static final Map<UUID, Ringing> RINGING = new HashMap<>();
+    /** Scheduled trains whose departure melody has played at this station (its id), so they may now leave. */
+    private static final Map<UUID, UUID> RUNG = new HashMap<>();
 
     private DepartureBell() {
     }
@@ -72,23 +78,52 @@ final class DepartureBell {
         }
         ServerLevel level = conductor.serverLevel();
         Optional<BlockPos> pos = BlockPos.findClosestMatch(conductor.blockPosition(), SEARCH_RANGE, SEARCH_RANGE,
-            p -> level.getBlockState(p).is(TrainCabItems.DEPARTURE_BELL.get()));
-        if (pos.isEmpty()) {
+            p -> isBell(level.getBlockState(p)));
+        if (pos.isEmpty() || !(level.getBlockEntity(pos.get()) instanceof BellSound bell)) {
             conductor.displayClientMessage(Component.literal("近くに発車ベルがありません"), true);
             return;
         }
-        BlockState state = level.getBlockState(pos.get());
+        ring(train, level, pos.get(), bell);
+    }
+
+    private static boolean isBell(BlockState state) {
+        return state.is(TrainCabItems.DEPARTURE_BELL.get()) || state.is(TrainCabItems.ADVANCED_STATION.get());
+    }
+
+    private static void ring(Train train, ServerLevel level, BlockPos pos, BellSound bell) {
         Ringing ringing = new Ringing();
         ringing.level = level;
-        ringing.pos = pos.get();
-        ringing.melody = state.getValue(DepartureBellBlock.MELODY);
-        if (level.getBlockEntity(ringing.pos) instanceof DepartureBellBlockEntity bell && bell.hasSound()
-            && CustomSounds.exists(level.getServer(), bell.soundHash())) {
+        ringing.pos = pos;
+        ringing.melody = bell.melody();
+        if (bell.hasSound() && CustomSounds.exists(level.getServer(), bell.soundHash())) {
             ringing.sound = bell.soundHash();
             ringing.soundTicks = CustomSounds.ticks(bell.soundBytes());
-            CustomSounds.play(level, ringing.pos, ringing.sound);
+            CustomSounds.play(level, pos, ringing.sound);
         }
         RINGING.put(train.id, ringing);
+    }
+
+    /**
+     * Called by ScheduleRuntimeMixin while a scheduled train is about to set off for its next instruction: at a
+     * 高度駅, rings its departure melody once and keeps the train there until it has finished.
+     */
+    public static boolean holdDeparture(Train train) {
+        if (RINGING.containsKey(train.id)) {
+            return true;
+        }
+        GlobalStation station = train.getCurrentStation();
+        if (station == null || station.id.equals(RUNG.get(train.id))) {
+            return false;
+        }
+        ServerLevel level = ServerLifecycleHooks.getCurrentServer().getLevel(station.getBlockEntityDimension());
+        BlockPos pos = station.getBlockEntityPos();
+        if (level == null || pos == null || !level.isLoaded(pos)
+            || !(level.getBlockEntity(pos) instanceof AdvancedStationBlockEntity bell)) {
+            return false;
+        }
+        RUNG.put(train.id, station.id);
+        ring(train, level, pos, bell);
+        return true;
     }
 
     static boolean isRinging(Train train) {
@@ -96,6 +131,12 @@ final class DepartureBell {
     }
 
     static void tick() {
+        // Forget the stop once the train has left it, so it rings again next time.
+        RUNG.entrySet().removeIf(e -> {
+            Train train = Create.RAILWAYS.trains.get(e.getKey());
+            GlobalStation at = train == null ? null : train.getCurrentStation();
+            return at == null || !at.id.equals(e.getValue());
+        });
         for (Iterator<Ringing> it = RINGING.values().iterator(); it.hasNext(); ) {
             Ringing r = it.next();
             if (r.sound != null) {
@@ -113,7 +154,7 @@ final class DepartureBell {
                 play(r, SoundEvents.NOTE_BLOCK_BELL.value(), VOLUME, 1.5f);
             }
             r.tick++;
-            if (!r.level.getBlockState(r.pos).is(TrainCabItems.DEPARTURE_BELL.get())) {
+            if (!isBell(r.level.getBlockState(r.pos))) {
                 if (r.sound != null) {
                     CustomSounds.play(r.level, r.pos, "");
                 }

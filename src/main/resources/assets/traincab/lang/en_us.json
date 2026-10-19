@@ -12,5 +12,6 @@
   "key.traincab.horn": "Horn (driver)",
   "key.traincab.music_horn": "Music horn (driver)",
   "block.traincab.departure_bell": "Departure Bell",
-  "key.traincab.departure_bell": "Departure bell / melody (conductor / one-man driver)"
+  "key.traincab.departure_bell": "Departure bell / melody (conductor / one-man driver)",
+  "block.traincab.advanced_station": "Advanced Train Station"
 }

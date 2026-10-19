@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create:track_station"
+    },
+    {
+      "item": "traincab:departure_bell"
+    }
+  ],
+  "result": {
+    "id": "traincab:advanced_station",
+    "count": 1
+  }
+}

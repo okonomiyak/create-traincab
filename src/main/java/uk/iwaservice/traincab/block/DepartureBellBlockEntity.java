@@ -21,7 +21,7 @@ import java.util.List;
  * The sound a departure bell plays: an uploaded one (see CustomSounds), or none for the built-in bell / melody.
  * Built into a train it also carries the 車内放送 picked from with N, and the sound M plays as the MH.
  */
-public class DepartureBellBlockEntity extends BlockEntity {
+public class DepartureBellBlockEntity extends BlockEntity implements BellSound {
 
     /** Most 車内放送 one bell holds. */
     public static final int MAX_ANNOUNCEMENTS = 8;
@@ -41,22 +41,32 @@ public class DepartureBellBlockEntity extends BlockEntity {
         super(TrainCabItems.DEPARTURE_BELL_ENTITY.get(), pos, state);
     }
 
+    @Override
     public boolean hasSound() {
         return !soundHash.isEmpty();
     }
 
+    @Override
     public String soundHash() {
         return soundHash;
     }
 
+    @Override
     public String soundName() {
         return soundName;
     }
 
+    @Override
     public int soundBytes() {
         return soundBytes;
     }
 
+    @Override
+    public boolean melody() {
+        return getBlockState().getValue(DepartureBellBlock.MELODY);
+    }
+
+    @Override
     public void setSound(String hash, String name, int bytes) {
         soundHash = hash;
         soundName = name;
@@ -91,6 +101,7 @@ public class DepartureBellBlockEntity extends BlockEntity {
         changed();
     }
 
+    @Override
     public void setBuiltin(boolean melody) {
         soundHash = "";
         soundName = "";
