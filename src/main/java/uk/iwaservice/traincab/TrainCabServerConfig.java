@@ -31,6 +31,14 @@ public class TrainCabServerConfig {
         .comment("How far (blocks) an on-duty conductor may be from their train before going off duty.")
         .defineInRange("conductorRange", 5.0, 1.0, 32.0);
 
+    private static final ForgeConfigSpec.BooleanValue UPLOAD_OP_ONLY = BUILDER
+        .comment("Only operators may upload departure bell sounds (otherwise anyone who can build at the bell).")
+        .define("uploadOpOnly", false);
+
+    private static final ForgeConfigSpec.IntValue MAX_SOUND_SECONDS = BUILDER
+        .comment("Longest departure bell sound that may be uploaded, in seconds (longer files are cut).")
+        .defineInRange("maxSoundSeconds", 60, 1, 300);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static double masconRate = 0.5;
@@ -38,6 +46,8 @@ public class TrainCabServerConfig {
     public static double stationSearchRange = 300.0;
     public static double overrunLimit = 10.0;
     public static double conductorRange = 5.0;
+    public static boolean uploadOpOnly = false;
+    public static int maxSoundSeconds = 60;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -49,5 +59,7 @@ public class TrainCabServerConfig {
         stationSearchRange = STATION_SEARCH_RANGE.get();
         overrunLimit = OVERRUN_LIMIT.get();
         conductorRange = CONDUCTOR_RANGE.get();
+        uploadOpOnly = UPLOAD_OP_ONLY.get();
+        maxSoundSeconds = MAX_SOUND_SECONDS.get();
     }
 }

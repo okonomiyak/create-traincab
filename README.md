@@ -22,7 +22,7 @@ A Create add-on for realistic train driving: stepped master controller, cab HUD,
   - Create のスライドドアの戸開・戸閉
   - 戸閉チャイム、戸挟み検知
   - 車掌非常ブレーキ
-  - 発車ベル / 発車メロディ(ホームに置くブロック。鳴り終わるまで戸閉できない)
+  - 発車ベル / 発車メロディ(ホームに置くブロック。鳴り終わるまで戸閉できない)。手元の mp3 / wav / ogg をアップロードして鳴らすこともでき、聞く人にリソースパックはいりません
   - 合図ベル、車内放送
 - **高度運転台**:運転台としての機能に加えて、ブレーキシリンダー(BC)圧力計が付きます。
 - **警笛とミュージックホーン**
@@ -72,3 +72,5 @@ HUD の位置・大きさ・単位やマスコンの加減速などは、「Mod�
 ## ライセンス
 
 [MIT License](LICENSE)
+
+mp3 の読み込みには [JLayer](https://www.javazoom.net/javalayer/javalayer.html)(LGPL-2.1)を使っており、jar の中に同梱しています。

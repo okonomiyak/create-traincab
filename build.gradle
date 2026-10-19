@@ -45,6 +45,7 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     // Registrate, which Create's public API classes reference
     maven { url = 'https://maven.ithundxr.dev/mirror' }
+    mavenCentral()
 }
 
 dependencies {
@@ -55,6 +56,10 @@ dependencies {
     modImplementation "com.tterrag.registrate:Registrate:${registrate_version}"
     modCompileOnly "dev.engine-room.flywheel:flywheel-forge-api-${minecraft_version}:${flywheel_version}"
     modRuntimeOnly "dev.engine-room.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}"
+
+    // MP3 decoder for uploaded departure bell sounds (LGPL-2.1), shipped inside our jar.
+    jarJar(implementation("javazoom:jlayer:1.0.1"))
+    additionalRuntimeClasspath "javazoom:jlayer:1.0.1"
 }
 
 // mods.toml's version="${file.jarVersion}" reads Implementation-Version. MixinConfigs is how Forge 1.20.1

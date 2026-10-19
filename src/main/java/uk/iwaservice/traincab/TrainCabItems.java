@@ -10,6 +10,7 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -19,6 +20,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import uk.iwaservice.traincab.block.DepartureBellBlock;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.item.ConductorCapItem;
 import uk.iwaservice.traincab.mascon.ConductorPanelInteraction;
 
@@ -26,6 +28,8 @@ public final class TrainCabItems {
 
     private static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, TrainCabMod.MODID);
     private static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, TrainCabMod.MODID);
+    private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
+        DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, TrainCabMod.MODID);
 
     /** 車掌ブロック: built into a train, right-click it to go on / off duty as conductor. */
     public static final RegistryObject<Block> CONDUCTOR_PANEL = BLOCKS.register("conductor_panel", () -> new Block(
@@ -44,6 +48,9 @@ public final class TrainCabItems {
         () -> new DepartureBellBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL)));
     public static final RegistryObject<Item> DEPARTURE_BELL_ITEM =
         ITEMS.register("departure_bell", () -> new BlockItem(DEPARTURE_BELL.get(), new Item.Properties()));
+    public static final RegistryObject<BlockEntityType<DepartureBellBlockEntity>> DEPARTURE_BELL_ENTITY =
+        BLOCK_ENTITIES.register("departure_bell",
+            () -> BlockEntityType.Builder.of(DepartureBellBlockEntity::new, DEPARTURE_BELL.get()).build(null));
 
     public static final RegistryObject<Item> CONDUCTOR_CAP =
         ITEMS.register("conductor_cap", () -> new ConductorCapItem(new Item.Properties().stacksTo(1)));
@@ -54,6 +61,7 @@ public final class TrainCabItems {
     static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
+        BLOCK_ENTITIES.register(modEventBus);
         modEventBus.addListener((FMLCommonSetupEvent event) -> event.enqueueWork(() -> {
             MovingInteractionBehaviour.REGISTRY.register(CONDUCTOR_PANEL.get(), new ConductorPanelInteraction());
             // Same behaviours Create gives its own controls: right-click to drive, animated lever.
