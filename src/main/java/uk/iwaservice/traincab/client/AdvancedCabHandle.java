@@ -21,7 +21,8 @@ import uk.iwaservice.traincab.TrainCabMod;
 import uk.iwaservice.traincab.mascon.Mascon;
 
 /**
- * The 高度運転台's mascon handle on a train: drawn on its own (the block's virtual model leaves it out) and tilted
+ * The 高度運転台's mascon handle on a train: drawn on its own (the block's "open" model, which Create uses on
+ * contraptions, leaves it out) and tilted
  * to the notch, away from the driver for power and towards them for braking. Only the driver knows the notch, so everyone
  * else sees it in N.
  */
