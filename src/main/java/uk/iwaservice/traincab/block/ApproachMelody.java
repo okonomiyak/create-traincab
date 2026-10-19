@@ -30,6 +30,10 @@ public final class ApproachMelody {
         {0, 10}, {4, 14}, {8, 17}, {12, 22}, {24, 10}, {28, 14}, {32, 17}, {36, 22},
     };
     private static final int CHIME_LENGTH = 48;
+    /** Range of the per-block distance (blocks along the track). */
+    public static final int MIN_DISTANCE = 10, MAX_DISTANCE = 1000;
+    /** No 接近メロディ this long after a train leaves the station (ticks), so it doesn't follow the departure. */
+    private static final int QUIET_AFTER_DEPARTURE = 100;
 
     @Nullable
     private Clip clip;
@@ -43,6 +47,12 @@ public final class ApproachMelody {
     private int chimeTick = -1;
     /** Game time the uploaded sound ends, so stopping it can't cut off a departure melody played after it. */
     private long soundEnds;
+    /** Starts this far from the station (blocks along the track); 0 = the server's approachDistance. */
+    private int distance;
+    /** The train standing at the station at the last update, and when the last one left. */
+    @Nullable
+    private UUID lastPresent;
+    private long departedAt = Long.MIN_VALUE / 2;
 
     public ApproachMelody(boolean defaultChime) {
         this.defaultChime = defaultChime;
@@ -56,6 +66,15 @@ public final class ApproachMelody {
 
     public boolean chime() {
         return chime;
+    }
+
+    /** How far from the station it starts (blocks along the track). */
+    public int distance() {
+        return distance > 0 ? distance : (int) TrainCabServerConfig.approachDistance;
+    }
+
+    public void setDistance(int distance) {
+        this.distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, distance));
     }
 
     public void set(@Nullable Clip clip, boolean chime) {
@@ -88,15 +107,22 @@ public final class ApproachMelody {
     /** Every few ticks: starts it for a train approaching {@code station}, stops it once that train is there. */
     public void update(ServerLevel level, BlockPos pos, @Nullable GlobalStation station) {
         Train present = station == null ? null : station.getPresentTrain();
+        UUID presentId = present == null ? null : present.id;
+        if (lastPresent != null && !lastPresent.equals(presentId)) {
+            departedAt = level.getGameTime();
+        }
+        lastPresent = presentId;
         // The train it played for has stopped: done (another train already standing at a 双方向 station doesn't
         // cut it off).
         if (present != null && present.id.equals(approachedTrain)) {
             stop(level, pos);
         }
-        Train approaching = station == null ? null : approachingTrain(station);
+        Train approaching = station == null ? null : approachingTrain(station, distance());
         if (approaching == null) {
             approachedTrain = null;
-        } else if (!approaching.id.equals(approachedTrain)) {
+        } else if (!approaching.id.equals(approachedTrain)
+            && level.getGameTime() - departedAt >= QUIET_AFTER_DEPARTURE) {
+            // Within the quiet time it stays unmarked, so it still plays once that is over if the train is coming.
             approachedTrain = approaching.id;
             play(level, pos);
         }
@@ -104,8 +130,7 @@ public final class ApproachMelody {
 
     /** A train on its way to stop at the station and close enough: scheduled, or driven with a mascon. */
     @Nullable
-    private static Train approachingTrain(GlobalStation station) {
-        double range = TrainCabServerConfig.approachDistance;
+    private static Train approachingTrain(GlobalStation station, double range) {
         Train train = station.getNearestTrain();
         if (train != null && train.navigation.destination == station && train.navigation.distanceToDestination < range) {
             return train;
@@ -132,6 +157,9 @@ public final class ApproachMelody {
 
     public void write(CompoundTag tag) {
         tag.putBoolean("ApproachChime", chime);
+        if (distance > 0) {
+            tag.putInt("ApproachDistance", distance);
+        }
         if (clip != null) {
             CompoundTag c = new CompoundTag();
             c.putString("Hash", clip.hash());
@@ -144,6 +172,7 @@ public final class ApproachMelody {
     /** {@code client}: read from a packet on the client, which starts downloading the sound. */
     public void read(CompoundTag tag, boolean client) {
         chime = tag.contains("ApproachChime") ? tag.getBoolean("ApproachChime") : defaultChime;
+        distance = tag.getInt("ApproachDistance");
         CompoundTag c = tag.getCompound("Approach");
         clip = c.contains("Hash") ? new Clip(c.getString("Hash"), c.getString("Name"), c.getInt("Bytes")) : null;
         if (client && clip != null) {

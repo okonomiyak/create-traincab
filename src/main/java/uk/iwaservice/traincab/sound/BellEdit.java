@@ -28,6 +28,11 @@ public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
     /** 接近メロディ back to the built-in chime, or off. */
     public static final int APPROACH_CHIME = -5;
     public static final int APPROACH_OFF = -6;
+    /** 接近メロディ starts 10 / 50 blocks farther from or nearer to the station. */
+    public static final int APPROACH_FARTHER = -7;
+    public static final int APPROACH_NEARER = -8;
+    public static final int APPROACH_MUCH_FARTHER = -9;
+    public static final int APPROACH_MUCH_NEARER = -10;
 
     public static final Type<BellEdit> TYPE =
         new Type<>(ResourceLocation.fromNamespaceAndPath(TrainCabMod.MODID, "bell_edit"));
@@ -56,6 +61,10 @@ public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
                 }
             } else if (edit.op == APPROACH_CHIME || edit.op == APPROACH_OFF) {
                 be.setApproach(null, edit.op == APPROACH_CHIME);
+            } else if (edit.op <= APPROACH_FARTHER && edit.op >= APPROACH_MUCH_NEARER) {
+                int step = edit.op == APPROACH_FARTHER ? 10 : edit.op == APPROACH_NEARER ? -10
+                    : edit.op == APPROACH_MUCH_FARTHER ? 50 : -50;
+                be.setApproachDistance(be.approachDistance() + step);
             } else if (!(be instanceof DepartureBellBlockEntity bell)) {
                 return;
             } else if (edit.op == MUSIC_HORN) {
