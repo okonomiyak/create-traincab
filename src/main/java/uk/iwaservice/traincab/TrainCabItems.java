@@ -18,6 +18,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import uk.iwaservice.traincab.block.DepartureBellBlock;
 import uk.iwaservice.traincab.item.ConductorCapItem;
 import uk.iwaservice.traincab.mascon.ConductorPanelInteraction;
 
@@ -37,6 +38,12 @@ public final class TrainCabItems {
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL).noOcclusion()));
     public static final RegistryObject<Item> ADVANCED_CAB_ITEM =
         ITEMS.register("advanced_cab", () -> new BlockItem(ADVANCED_CAB.get(), new Item.Properties()));
+
+    /** 発車ベル: on the platform, rung by a conductor stopped nearby. */
+    public static final RegistryObject<DepartureBellBlock> DEPARTURE_BELL = BLOCKS.register("departure_bell",
+        () -> new DepartureBellBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL)));
+    public static final RegistryObject<Item> DEPARTURE_BELL_ITEM =
+        ITEMS.register("departure_bell", () -> new BlockItem(DEPARTURE_BELL.get(), new Item.Properties()));
 
     public static final RegistryObject<Item> CONDUCTOR_CAP =
         ITEMS.register("conductor_cap", () -> new ConductorCapItem(new Item.Properties().stacksTo(1)));
@@ -58,6 +65,7 @@ public final class TrainCabItems {
                 event.accept(CONDUCTOR_CAP);
                 event.accept(CONDUCTOR_PANEL_ITEM);
                 event.accept(ADVANCED_CAB_ITEM);
+                event.accept(DEPARTURE_BELL_ITEM);
             }
         });
     }

@@ -47,6 +47,7 @@ public final class TrainCabClientEvents {
             event.register(ConductorClient.ANNOUNCE);
             event.register(ConductorClient.HORN);
             event.register(ConductorClient.MUSIC_HORN);
+            event.register(ConductorClient.DEPARTURE_BELL);
         }
     }
 

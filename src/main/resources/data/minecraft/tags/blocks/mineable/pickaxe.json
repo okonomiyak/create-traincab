@@ -1,6 +1,7 @@
 {
   "values": [
     "traincab:conductor_panel",
-    "traincab:advanced_cab"
+    "traincab:advanced_cab",
+    "traincab:departure_bell"
   ]
 }

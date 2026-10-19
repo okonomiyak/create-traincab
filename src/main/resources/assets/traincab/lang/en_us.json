@@ -10,5 +10,7 @@
   "key.traincab.announce": "Announcement (conductor)",
   "block.traincab.advanced_cab": "Advanced Cab Desk",
   "key.traincab.horn": "Horn (driver)",
-  "key.traincab.music_horn": "Music horn (driver)"
+  "key.traincab.music_horn": "Music horn (driver)",
+  "block.traincab.departure_bell": "Departure Bell",
+  "key.traincab.departure_bell": "Departure bell / melody (conductor)"
 }
