@@ -44,6 +44,10 @@ public class TrainCabConfig {
         .comment("Play a VVVF inverter traction sound (GTO, like the Hankyu 8000 series) from moving trains nearby.")
         .define("vvvfSound", true);
 
+    private static final ForgeConfigSpec.DoubleValue VVVF_VOLUME = BUILDER
+        .comment("Volume of the VVVF sound.")
+        .defineInRange("vvvfVolume", 1.0, 0.0, 2.0);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static boolean enabled = true;
@@ -53,6 +57,7 @@ public class TrainCabConfig {
     public static double scale = 1.0;
     public static boolean stationAssist = true;
     public static boolean vvvfSound = true;
+    public static double vvvfVolume = 1.0;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -66,5 +71,6 @@ public class TrainCabConfig {
         scale = SCALE.get();
         stationAssist = STATION_ASSIST.get();
         vvvfSound = VVVF_SOUND.get();
+        vvvfVolume = VVVF_VOLUME.get();
     }
 }

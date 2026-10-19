@@ -41,10 +41,15 @@ final class VvvfSynth {
     private static final double CURRENT_GAIN = 1.575;
     private static final double ROLL_GAIN = 3.052;
     private static final double FAN_GAIN = 1.063;
-    private static final double OUT_GAIN = 0.158;
+    private static final double OUT_GAIN = 0.08;
+    // By ear (raised from the reference's 0.18 / 0.05 / none for more noise).
+    private static final double ROLL = 0.6;
+    private static final double FAN = 0.15;
+    private static final double MAGNETIC_NOISE = 0.6;
 
     volatile double target;
     volatile int state = COAST;
+    volatile double volume = 1;
 
     private double f;
     private double gate;
@@ -106,16 +111,17 @@ final class VvvfSynth {
             gearPhase = frac(gearPhase + 8 * f / FS);
             double gear = (Math.sin(2 * Math.PI * gearPhase) + 0.5 * Math.sin(4 * Math.PI * gearPhase)
                 + 0.25 * Math.sin(6 * Math.PI * gearPhase)) * 0.22 * spd * (0.6 + 0.4 * gate);
-            double src = current + ripple + gear;
+            double noise = random.nextDouble(-1.7320508, 1.7320508);
+            // Switching / magnetic hiss while the inverter runs, coloured by the resonances below.
+            double src = current + ripple + gear + MAGNETIC_NOISE * noise * gate;
             double body = src;
             for (int r = 0; r < resonances.length; r++) {
                 body += RESONANCES[r][2] * resonances[r].process(src);
             }
 
-            double noise = random.nextDouble(-1.7320508, 1.7320508);
-            double roll = rollLow.process(rollHigh.process(noise)) * ROLL_GAIN * 0.18 * Math.pow(spd, 1.5);
-            double fan = fanHigh.process(noise) * FAN_GAIN * 0.05 * Math.max(0, Math.min((f - 30) / 44, 1));
-            out[i] = (float) Math.max(-1, Math.min(1, (body + roll + fan) * OUT_GAIN));
+            double roll = rollLow.process(rollHigh.process(noise)) * ROLL_GAIN * ROLL * Math.pow(spd, 1.5);
+            double fan = fanHigh.process(noise) * FAN_GAIN * FAN * Math.max(0, Math.min((f - 30) / 44, 1));
+            out[i] = (float) Math.max(-1, Math.min(1, (body + roll + fan) * OUT_GAIN * volume));
         }
     }
 

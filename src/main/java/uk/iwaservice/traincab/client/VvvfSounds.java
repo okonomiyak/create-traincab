@@ -128,6 +128,7 @@ public final class VvvfSounds {
                 state = notch > 0 ? VvvfSynth.POWER : notch < 0 ? VvvfSynth.BRAKE : VvvfSynth.COAST;
             }
             synth.state = state;
+            synth.volume = TrainCabConfig.vvvfVolume;
             synth.target = VvvfSynth.F_MAX * speed / AllConfigs.server().trains.trainTopSpeed.getF();
 
             // Out of sources, or the stream ran dry in a lag spike: try again every second.
