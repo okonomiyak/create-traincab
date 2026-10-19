@@ -39,6 +39,10 @@ public class TrainCabServerConfig {
         .comment("Longest departure bell sound that may be uploaded, in seconds (longer files are cut).")
         .defineInRange("maxSoundSeconds", 60, 1, 300);
 
+    private static final ModConfigSpec.DoubleValue APPROACH_DISTANCE = BUILDER
+        .comment("How far (blocks along the track) from a 高度駅 an approaching train sets off its 接近メロディ.")
+        .defineInRange("approachDistance", 150.0, 16.0, 1000.0);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static double masconRate = 0.5;
@@ -48,6 +52,7 @@ public class TrainCabServerConfig {
     public static double conductorRange = 5.0;
     public static boolean uploadOpOnly = false;
     public static int maxSoundSeconds = 60;
+    public static double approachDistance = 150.0;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -61,5 +66,6 @@ public class TrainCabServerConfig {
         conductorRange = CONDUCTOR_RANGE.get();
         uploadOpOnly = UPLOAD_OP_ONLY.get();
         maxSoundSeconds = MAX_SOUND_SECONDS.get();
+        approachDistance = APPROACH_DISTANCE.get();
     }
 }

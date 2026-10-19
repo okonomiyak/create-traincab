@@ -121,6 +121,17 @@ public final class Mascon {
         return s == null || !s.stationAssist ? null : stationInfo(s);
     }
 
+    /** A train driven with a mascon whose next stop is {@code station}, within {@code range} of it, or null. */
+    public static Train approaching(GlobalStation station, double range) {
+        for (Map.Entry<UUID, State> entry : STATES.entrySet()) {
+            State s = entry.getValue();
+            if (s.station == station && s.stationDistance < range && now() - s.lastUpdate <= STALE_TICKS) {
+                return Create.RAILWAYS.trains.get(entry.getKey());
+            }
+        }
+        return null;
+    }
+
     /** True while a driver's mascon owns this train's speed (Create's manual acceleration is skipped). */
     public static boolean isActive(Train train) {
         return active(train) != null;
