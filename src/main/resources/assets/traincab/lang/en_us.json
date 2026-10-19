@@ -1,4 +1,5 @@
 {
+  "itemGroup.traincab": "Train Cab HUD",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "Emergency Brake",
   "key.traincab.reverser_forward": "Reverser towards Forward (when stopped)",

@@ -11,7 +11,9 @@ import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -22,7 +24,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -80,6 +81,20 @@ public final class TrainCabItems {
     public static final DeferredItem<Item> CONDUCTOR_CAP =
         ITEMS.register("conductor_cap", () -> new ConductorCapItem(new Item.Properties().stacksTo(1)));
 
+    private static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, TrainCabMod.MODID);
+    public static final Supplier<CreativeModeTab> TAB = TABS.register("traincab", () -> CreativeModeTab.builder()
+        .title(Component.translatable("itemGroup.traincab"))
+        .icon(() -> new ItemStack(ADVANCED_CAB_ITEM.get()))
+        .displayItems((params, output) -> {
+            output.accept(ADVANCED_CAB_ITEM.get());
+            output.accept(ADVANCED_STATION_ITEM.get());
+            output.accept(DEPARTURE_BELL_ITEM.get());
+            output.accept(CONDUCTOR_PANEL_ITEM.get());
+            output.accept(INVERTER_ITEM.get());
+            output.accept(CONDUCTOR_CAP.get());
+        })
+        .build());
+
     private TrainCabItems() {
     }
 
@@ -87,6 +102,7 @@ public final class TrainCabItems {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
+        TABS.register(modEventBus);
         modEventBus.addListener((FMLCommonSetupEvent event) -> event.enqueueWork(() -> {
             MovingInteractionBehaviour.REGISTRY.register(CONDUCTOR_PANEL.get(), new ConductorPanelInteraction());
             // Same behaviours Create gives its own controls: right-click to drive, animated lever.
@@ -99,15 +115,5 @@ public final class TrainCabItems {
         // Funnels and arms can put a schedule into its depot, like Create's station.
         modEventBus.addListener((RegisterCapabilitiesEvent event) -> event.registerBlockEntity(
             Capabilities.ItemHandler.BLOCK, ADVANCED_STATION_ENTITY.get(), (be, side) -> be.depotItems()));
-        modEventBus.addListener((BuildCreativeModeTabContentsEvent event) -> {
-            if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-                event.accept(CONDUCTOR_CAP);
-                event.accept(CONDUCTOR_PANEL_ITEM);
-                event.accept(INVERTER_ITEM);
-                event.accept(ADVANCED_CAB_ITEM);
-                event.accept(DEPARTURE_BELL_ITEM);
-                event.accept(ADVANCED_STATION_ITEM);
-            }
-        });
     }
 }
