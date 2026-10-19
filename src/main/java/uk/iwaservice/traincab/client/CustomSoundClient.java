@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 import uk.iwaservice.traincab.sound.CustomSounds;
 import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
@@ -30,9 +31,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +56,8 @@ public final class CustomSoundClient {
     /** Refuse bigger downloads (the server allows at most 300 s = 13 MB). */
     private static final int MAX_BYTES = 16 << 20;
     private static final Logger LOGGER = LogUtils.getLogger();
+    /** Uploads remembered for picking again (the sounds themselves stay in the cache). */
+    private static final int HISTORY_SIZE = 8;
 
     // Client thread only.
     // ponytail: sounds stay in memory for the session; evict if players collect many long ones.
@@ -63,6 +68,8 @@ public final class CustomSoundClient {
     private static final Map<Object, String> WAITING = new HashMap<>();
     private static final Map<Object, SoundInstance> PLAYING = new HashMap<>();
     private static SoundInstance preview;
+    /** This player's uploads, newest first; loaded from {@code traincab/sound_history.txt} on first use. */
+    private static List<Clip> history;
 
     private CustomSoundClient() {
     }
@@ -185,9 +192,48 @@ public final class CustomSoundClient {
         }
     }
 
+    private static Path historyFile() {
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("traincab/sound_history.txt");
+    }
+
+    /** Sounds this player uploaded, newest first, on any world or server. */
+    static List<Clip> history() {
+        if (history == null) {
+            history = new ArrayList<>();
+            try {
+                for (String line : Files.readAllLines(historyFile())) {
+                    String[] f = line.split("\t", 3);
+                    if (f.length == 3 && CustomSounds.isHash(f[0])) {
+                        history.add(new Clip(f[0], f[2], Integer.parseInt(f[1])));
+                    }
+                }
+            } catch (IOException | NumberFormatException ignored) {
+                // No history yet, or a broken file: start over.
+            }
+        }
+        return history;
+    }
+
+    private static void remember(String hash, String name, int bytes) {
+        List<Clip> list = history();
+        list.removeIf(c -> c.hash().equals(hash));
+        list.add(0, new Clip(hash, name, bytes));
+        while (list.size() > HISTORY_SIZE) {
+            list.remove(list.size() - 1);
+        }
+        try {
+            Files.write(historyFile(), list.stream()
+                .map(c -> c.hash() + "\t" + c.bytes() + "\t" + c.name().replaceAll("[\t\r\n]", " ")).toList());
+        } catch (IOException e) {
+            LOGGER.warn("Could not save the sound history {}", historyFile(), e);
+        }
+    }
+
     /** {@code target}: one of the SoundChunk targets. */
     static void upload(BlockPos pos, String name, int target, byte[] pcm) {
-        store(CustomSounds.sha1(pcm), pcm);
+        String hash = CustomSounds.sha1(pcm);
+        store(hash, pcm);
+        remember(hash, name, pcm.length);
         for (int off = 0; off < pcm.length; off += CustomSounds.CHUNK_SIZE) {
             PacketDistributor.sendToServer(new SoundChunk(pos, name, target, pcm.length, off,
                 Arrays.copyOfRange(pcm, off, Math.min(pcm.length, off + CustomSounds.CHUNK_SIZE))));
