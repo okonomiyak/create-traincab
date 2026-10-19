@@ -22,7 +22,7 @@ import uk.iwaservice.traincab.mascon.Mascon;
 
 /**
  * The 高度運転台's mascon handle on a train: drawn on its own (the block's virtual model leaves it out) and tilted
- * to the notch, towards the driver for power and away for braking. Only the driver knows the notch, so everyone
+ * to the notch, away from the driver for power and towards them for braking. Only the driver knows the notch, so everyone
  * else sees it in N.
  */
 public final class AdvancedCabHandle {
@@ -38,12 +38,12 @@ public final class AdvancedCabHandle {
     public static void init() {
     }
 
-    /** Degrees of tilt about the x axis; negative leans towards the driver (the block's north side). */
+    /** Degrees of tilt about the x axis: power leans away from the driver (positive), braking towards them. */
     static float angle(int notch) {
         if (notch > 0) {
-            return -6f * notch;
+            return 8f * notch;
         }
-        return notch == Mascon.EB ? 40f : -4f * notch;
+        return notch == Mascon.EB ? -50f : 5f * notch;
     }
 
     /** Every client tick: chases the angle of the notch this player holds the handle in, if it is theirs. */
