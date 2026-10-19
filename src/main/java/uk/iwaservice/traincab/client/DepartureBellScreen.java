@@ -1,12 +1,12 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.foundation.gui.AllIcons;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.PointerBuffer;
@@ -38,6 +38,7 @@ public class DepartureBellScreen extends Screen {
     private static final int WHITE = 0xFFFFFF;
     private static final int GREY = 0xA0A0A0;
     private static final int ROW_H = 21;
+    private static final int PANEL_W = 216;
 
     private final BlockPos pos;
     /** The SoundChunk target the open tab edits. */
@@ -49,6 +50,8 @@ public class DepartureBellScreen extends Screen {
     private boolean loading;
     /** The bell's contents when the widgets were built, to rebuild them once the server changes it. */
     private String shown;
+    /** Where the panel's body ends and its footer (with ✓) begins. */
+    private int bodyBottom;
 
     private DepartureBellScreen(BlockPos pos) {
         super(Component.literal(Minecraft.getInstance().level.getBlockEntity(pos) instanceof AdvancedStationBlockEntity
@@ -67,17 +70,19 @@ public class DepartureBellScreen extends Screen {
     @Override
     protected void init() {
         int x = width / 2 - 100;
-        int y = top() + 14;
+        int y = top() + 16;
+        AdvancedStationBlockEntity station = null;
         if (trainBell() != null) {
             // Tab i edits SoundChunk target i (BELL, ANNOUNCEMENT, MUSIC_HORN, APPROACH).
             String[] tabs = {"発車ベル", "車内放送", "MH", "接近メロディ"};
             int[] widths = {50, 50, 34, 60};
             for (int i = 0, tx = x; i < tabs.length; tx += widths[i] + 2, i++) {
                 int target = i;
-                addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
-                    .bounds(tx, y, widths[i], 20).build()).active = tab != i;
+                addRenderableWidget(new CreateGui.TextButton(Button.builder(Component.literal(tabs[i]),
+                    b -> switchTab(target)).bounds(tx, y, widths[i], 20), tab == i));
             }
-        } else if (bell() instanceof AdvancedStationBlockEntity station) {
+        } else if (bell() instanceof AdvancedStationBlockEntity advanced) {
+            station = advanced;
             if (tab != SoundChunk.APPROACH) {
                 tab = SoundChunk.BELL;
             }
@@ -85,43 +90,46 @@ public class DepartureBellScreen extends Screen {
             int[] targets = {SoundChunk.BELL, SoundChunk.APPROACH};
             for (int i = 0; i < tabs.length; i++) {
                 int target = targets[i];
-                addRenderableWidget(Button.builder(Component.literal(tabs[i]), b -> switchTab(target))
-                    .bounds(x + 102 * i, y, 98, 20).build()).active = tab != target;
+                addRenderableWidget(new CreateGui.TextButton(Button.builder(Component.literal(tabs[i]),
+                    b -> switchTab(target)).bounds(x + 102 * i, y, 98, 20), tab == target));
             }
-            addRenderableWidget(Button.builder(
-                Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
-                b -> PacketDistributor.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y + 196, 200, 20).build());
         } else {
             tab = SoundChunk.BELL;
         }
-        if (tab == SoundChunk.ANNOUNCEMENT) {
-            initAnnouncements(x, y + 50, trainBell());
-        } else {
-            initSingle(x, y + 50, bell());
+        int bottom = tab == SoundChunk.ANNOUNCEMENT ? initAnnouncements(x, y + 50, trainBell())
+            : initSingle(x, y + 50, bell());
+        if (station != null) {
+            addRenderableWidget(Button.builder(
+                Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
+                b -> send(BellEdit.TWO_WAY)).bounds(x, bottom + 8, 200, 20).build(CreateGui.TextButton::new));
+            bottom += 28;
         }
+        bodyBottom = bottom + 6;
+        addRenderableWidget(CreateGui.icon(width / 2 + PANEL_W / 2 - 30, bodyBottom + 6, AllIcons.I_CONFIRM, "完了",
+            this::onClose));
         shown = contents();
     }
 
-    /** The 発車ベル, MH or 接近メロディ tab. */
-    private void initSingle(int x, int y, BellSound bell) {
+    /** The 発車ベル, MH or 接近メロディ tab. Returns the bottom of its widgets. */
+    private int initSingle(int x, int y, BellSound bell) {
         addRenderableWidget(Button.builder(Component.literal("ファイルを選ぶ…"), b -> choose())
-            .bounds(x, y, 98, 20).build()).active = !loading;
+            .bounds(x, y, 98, 20).build(CreateGui.TextButton::new)).active = !loading;
         addRenderableWidget(Button.builder(Component.literal("履歴から選ぶ…"), b -> openHistory())
-            .bounds(x + 102, y, 98, 20).build()).active = !loading;
+            .bounds(x + 102, y, 98, 20).build(CreateGui.TextButton::new)).active = !loading;
         addRenderableWidget(Button.builder(Component.literal("試聴"), b -> previewBell())
-            .bounds(x, y + 24, 98, 20).build()).active = pcm != null || uploaded(bell) != null;
+            .bounds(x, y + 24, 98, 20).build(CreateGui.TextButton::new)).active = pcm != null || uploaded(bell) != null;
         addRenderableWidget(Button.builder(Component.literal("アップロードして保存"), b -> {
             CustomSoundClient.upload(pos, fileName, tab, pcm);
             onClose();
-        }).bounds(x + 102, y + 24, 98, 20).build()).active = pcm != null;
+        }).bounds(x + 102, y + 24, 98, 20).build(CreateGui.TextButton::new)).active = pcm != null;
         if (tab == SoundChunk.MUSIC_HORN) {
             addRenderableWidget(Button.builder(Component.literal("内蔵 MH に戻す"), b -> builtin(BellEdit.MUSIC_HORN))
-                .bounds(x, y + 62, 200, 20).build());
+                .bounds(x, y + 62, 200, 20).build(CreateGui.TextButton::new));
         } else if (tab == SoundChunk.APPROACH) {
             addRenderableWidget(Button.builder(Component.literal("内蔵チャイム"), b -> builtin(BellEdit.APPROACH_CHIME))
-                .bounds(x, y + 62, 98, 20).build());
+                .bounds(x, y + 62, 98, 20).build(CreateGui.TextButton::new));
             addRenderableWidget(Button.builder(Component.literal("鳴らさない"), b -> builtin(BellEdit.APPROACH_OFF))
-                .bounds(x + 102, y + 62, 98, 20).build());
+                .bounds(x + 102, y + 62, 98, 20).build(CreateGui.TextButton::new));
             // Distance row: −50 −10 [n m] +10 +50 (the label is drawn in render).
             int[] ops = {BellEdit.APPROACH_MUCH_NEARER, BellEdit.APPROACH_NEARER, BellEdit.APPROACH_FARTHER,
                 BellEdit.APPROACH_MUCH_FARTHER};
@@ -130,38 +138,43 @@ public class DepartureBellScreen extends Screen {
             for (int i = 0; i < ops.length; i++) {
                 int op = ops[i];
                 addRenderableWidget(Button.builder(Component.literal(labels[i]), b -> send(op))
-                    .bounds(x + xs[i], y + 98, 30, 20).build());
+                    .bounds(x + xs[i], y + 98, 30, 20).build(CreateGui.TextButton::new));
             }
+            return y + 118;
         } else {
             addRenderableWidget(Button.builder(Component.literal("内蔵メロディ"), b -> builtin(BellEdit.MELODY))
-                .bounds(x, y + 62, 98, 20).build());
+                .bounds(x, y + 62, 98, 20).build(CreateGui.TextButton::new));
             addRenderableWidget(Button.builder(Component.literal("内蔵ベル"), b -> builtin(BellEdit.BELL))
-                .bounds(x + 102, y + 62, 98, 20).build());
+                .bounds(x + 102, y + 62, 98, 20).build(CreateGui.TextButton::new));
         }
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-            .bounds(x, y + (tab == SoundChunk.APPROACH ? 122 : 94), 200, 20).build());
+        return y + 82;
     }
 
-    private void initAnnouncements(int x, int y, DepartureBellBlockEntity bell) {
+    /** Returns the bottom of its widgets and the status line under them. */
+    private int initAnnouncements(int x, int y, DepartureBellBlockEntity bell) {
         List<Clip> clips = bell == null ? List.of() : bell.announcements();
         for (int i = 0; i < clips.size(); i++) {
             int index = i;
             Clip clip = clips.get(i);
-            addRenderableWidget(Button.builder(Component.literal("▶"), b -> previewClip(clip.hash()))
-                .bounds(x + 156, y + ROW_H * i, 20, 20).build());
-            addRenderableWidget(Button.builder(Component.literal("×"), b -> {
-                PacketDistributor.sendToServer(new BellEdit(pos, index));
+            addRenderableWidget(CreateGui.icon(x + 160, y + ROW_H * i + 1, AllIcons.I_PLAY, "試聴",
+                () -> previewClip(clip.hash())));
+            addRenderableWidget(CreateGui.icon(x + 182, y + ROW_H * i + 1, AllIcons.I_TRASH, "削除", () -> {
+                send(index);
                 CustomSoundClient.preview(null);
-            }).bounds(x + 180, y + ROW_H * i, 20, 20).build());
+            }));
         }
         int bottom = y + ROW_H * Math.max(clips.size(), 1) + 4;
         boolean room = !loading && clips.size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS;
         addRenderableWidget(Button.builder(Component.literal("追加…"), b -> choose())
-            .bounds(x, bottom, 64, 20).build()).active = room;
+            .bounds(x, bottom, 98, 20).build(CreateGui.TextButton::new)).active = room;
         addRenderableWidget(Button.builder(Component.literal("履歴…"), b -> openHistory())
-            .bounds(x + 68, bottom, 64, 20).build()).active = room;
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-            .bounds(x + 136, bottom, 64, 20).build());
+            .bounds(x + 102, bottom, 98, 20).build(CreateGui.TextButton::new)).active = room;
+        return bottom + 34;
+    }
+
+    private void drawPanel(GuiGraphics g) {
+        CreateGui.panel(g, font, title, width / 2 - PANEL_W / 2, top() - 4, PANEL_W,
+            bodyBottom - top() + 4 - CreateGui.HEADER_H);
     }
 
     private void openHistory() {
@@ -328,12 +341,17 @@ public class DepartureBellScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        drawPanel(g);
+    }
+
+    @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         int cx = width / 2;
         int x = cx - 100;
-        int y = top() + 64;
-        g.drawCenteredString(font, title, cx, top(), WHITE);
+        int y = top() + 66;
         if (tab == SoundChunk.ANNOUNCEMENT) {
             DepartureBellBlockEntity bell = trainBell();
             g.drawCenteredString(font, "列車に組み込むと、車掌が N で選んで流せます", cx, y - 24, GREY);

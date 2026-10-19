@@ -1,9 +1,9 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.foundation.gui.AllIcons;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 import uk.iwaservice.traincab.sound.CustomSounds;
@@ -15,6 +15,7 @@ class SoundHistoryScreen extends Screen {
 
     private static final int GREY = 0xA0A0A0;
     private static final int ROW_H = 22;
+    private static final int PANEL_W = 216;
 
     private final DepartureBellScreen parent;
     private Component status = Component.empty();
@@ -36,16 +37,20 @@ class SoundHistoryScreen extends Screen {
         for (int i = 0; i < clips.size(); i++) {
             Clip clip = clips.get(i);
             String label = clip.name() + " (" + String.format("%.1f 秒", clip.bytes() / 2.0 / CustomSounds.SAMPLE_RATE) + ")";
-            addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(label, 166)), b -> pick(clip))
-                .bounds(x, y + ROW_H * i, 176, 20).build());
-            addRenderableWidget(Button.builder(Component.literal("▶"), b -> {
+            addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(label, 168)), b -> pick(clip))
+                .bounds(x, y + ROW_H * i, 178, 20).build(CreateGui.TextButton::new));
+            addRenderableWidget(CreateGui.icon(x + 182, y + ROW_H * i + 1, AllIcons.I_PLAY, "試聴", () -> {
                 byte[] pcm = CustomSoundClient.get(clip.hash());
                 status = pcm == null ? Component.literal("この音声のキャッシュが見つかりません") : Component.empty();
                 CustomSoundClient.preview(pcm);
-            }).bounds(x + 180, y + ROW_H * i, 20, 20).build());
+            }));
         }
-        addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, b -> onClose())
-            .bounds(x, y + ROW_H * Math.max(clips.size(), 1) + 8, 200, 20).build());
+        addRenderableWidget(CreateGui.icon(width / 2 + PANEL_W / 2 - 30, bodyBottom() + 6, AllIcons.I_CONFIG_BACK, "戻る",
+            this::onClose));
+    }
+
+    private int bodyBottom() {
+        return top() + 30 + ROW_H * Math.max(CustomSoundClient.history().size(), 1) + 4;
     }
 
     private void pick(Clip clip) {
@@ -71,9 +76,14 @@ class SoundHistoryScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        CreateGui.panel(g, font, title, width / 2 - PANEL_W / 2, top() - 4, PANEL_W, bodyBottom() - top() + 4 - CreateGui.HEADER_H);
+    }
+
+    @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
-        g.drawCenteredString(font, title, width / 2, top(), 0xFFFFFF);
         if (CustomSoundClient.history().isEmpty()) {
             g.drawCenteredString(font, "まだありません（アップロードした音声がここに残ります）", width / 2, top() + 36, GREY);
         }
