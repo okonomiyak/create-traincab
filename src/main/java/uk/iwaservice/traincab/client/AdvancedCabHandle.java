@@ -39,12 +39,16 @@ public final class AdvancedCabHandle {
     public static void init() {
     }
 
-    /** Degrees of tilt about the x axis: power leans away from the driver (positive), braking towards them. */
+    /**
+     * Degrees of tilt about the x axis: power leans away from the driver (positive), braking towards them. The desk
+     * leaves little room on the power side (about 16°), so N already leans a little towards the driver.
+     */
     static float angle(int notch) {
+        float n = -10f;
         if (notch > 0) {
-            return 8f * notch;
+            return n + 5f * notch;
         }
-        return notch == Mascon.EB ? -50f : 5f * notch;
+        return notch == Mascon.EB ? n - 45f : n + 5f * notch;
     }
 
     /** Every client tick: chases the angle of the notch this player holds the handle in, if it is theirs. */
