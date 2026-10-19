@@ -7,16 +7,26 @@ import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import uk.iwaservice.traincab.client.AdvancedCabHandle;
 
 /**
- * The 高度運転台 on a train: Create's controls behaviour, minus Create's animated cover and levers, which would
- * stick out of this block's own model (it has its own handles).
+ * The 高度運転台 on a train: Create's controls behaviour, but instead of Create's cover and levers (which would stick
+ * out of this block's model) it draws the block's own mascon handle, tilted to the notch.
  */
 public class AdvancedCabMovementBehaviour extends ControlsMovementBehaviour {
+
+    @Override
+    public void tick(MovementContext context) {
+        // Not super: that keeps Create's lever angles in temporaryData, where the handle's angle lives instead.
+        if (context.world.isClientSide) {
+            AdvancedCabHandle.tick(context);
+        }
+    }
 
     @Override
     @OnlyIn(Dist.CLIENT)
     public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld, ContraptionMatrices matrices,
                                     MultiBufferSource buffer) {
+        AdvancedCabHandle.render(context, renderWorld, matrices, buffer);
     }
 }
