@@ -6,8 +6,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.client.DepartureBellScreen;
@@ -19,8 +22,17 @@ import uk.iwaservice.traincab.client.DepartureBellScreen;
  */
 public class AdvancedStationBlock extends StationBlock {
 
+    /** The departure signal lamp on top: green once a train may leave (see AdvancedStationBlockEntity). */
+    public static final BooleanProperty CLEAR = BooleanProperty.create("clear");
+
     public AdvancedStationBlock(Properties properties) {
         super(properties);
+        registerDefaultState(defaultBlockState().setValue(CLEAR, false));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder.add(CLEAR));
     }
 
     @Override
