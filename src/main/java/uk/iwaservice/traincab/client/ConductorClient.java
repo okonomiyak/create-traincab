@@ -38,8 +38,9 @@ public final class ConductorClient {
     /** Called from TrainDrivingState.tick, which owns the shared emergency key. */
     static void tick(boolean driving, boolean emergencyPressed) {
         CrewStatus.age++;
-        // 車内放送 chime, "ピンポーン": two notes a few ticks apart, for whoever received the announcement.
-        if (Announcement.latest != null) {
+        // 車内放送 chime, "ピンポーン": two notes a few ticks apart, for whoever received the announcement
+        // (unless it comes with its own uploaded sound).
+        if (Announcement.latest != null && Announcement.latest.hash().isEmpty()) {
             if (Announcement.age == 0) {
                 chime(1.26f);
             } else if (Announcement.age == 6) {
@@ -110,6 +111,10 @@ public final class ConductorClient {
     }
 
     private static void send(int action) {
-        PacketDistributor.sendToServer(new ConductorAction(action));
+        send(action, 0);
+    }
+
+    static void send(int action, int arg) {
+        PacketDistributor.sendToServer(new ConductorAction(action, arg));
     }
 }

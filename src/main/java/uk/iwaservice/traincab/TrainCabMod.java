@@ -6,12 +6,13 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import uk.iwaservice.traincab.mascon.Announcement;
+import uk.iwaservice.traincab.mascon.AnnouncementMenu;
 import uk.iwaservice.traincab.mascon.ConductorAction;
 import uk.iwaservice.traincab.mascon.CrewStatus;
 import uk.iwaservice.traincab.mascon.MasconPayload;
 import uk.iwaservice.traincab.mascon.StationInfo;
 import uk.iwaservice.traincab.mascon.StopResult;
-import uk.iwaservice.traincab.sound.BellMode;
+import uk.iwaservice.traincab.sound.BellEdit;
 import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
@@ -25,7 +26,7 @@ public class TrainCabMod {
         modContainer.registerConfig(ModConfig.Type.CLIENT, TrainCabConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TrainCabServerConfig.SPEC);
         TrainCabItems.register(modEventBus);
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("7")
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("8")
             .playToServer(MasconPayload.TYPE, MasconPayload.STREAM_CODEC, MasconPayload::handle)
             .playToServer(ConductorAction.TYPE, ConductorAction.STREAM_CODEC, ConductorAction::handle)
             .playToClient(StationInfo.TYPE, StationInfo.STREAM_CODEC, StationInfo::handle)
@@ -34,7 +35,8 @@ public class TrainCabMod {
             .playToClient(StopResult.TYPE, StopResult.STREAM_CODEC, StopResult::handle)
             .playBidirectional(SoundChunk.TYPE, SoundChunk.STREAM_CODEC, SoundChunk::handle)
             .playToServer(SoundRequest.TYPE, SoundRequest.STREAM_CODEC, SoundRequest::handle)
-            .playToServer(BellMode.TYPE, BellMode.STREAM_CODEC, BellMode::handle)
-            .playToClient(SoundPlay.TYPE, SoundPlay.STREAM_CODEC, SoundPlay::handle));
+            .playToServer(BellEdit.TYPE, BellEdit.STREAM_CODEC, BellEdit::handle)
+            .playToClient(SoundPlay.TYPE, SoundPlay.STREAM_CODEC, SoundPlay::handle)
+            .playToClient(AnnouncementMenu.TYPE, AnnouncementMenu.STREAM_CODEC, AnnouncementMenu::handle));
     }
 }

@@ -13,10 +13,11 @@ import uk.iwaservice.traincab.client.CustomSoundClient;
 
 /**
  * A piece of a departure bell sound ({@code total} bytes, this piece starting at {@code offset}).
- * Client → server: an upload for the bell at {@code pos}, {@code id} being its display name.
+ * Client → server: an upload for the bell at {@code pos}, {@code id} being its display name; {@code announcement}
+ * adds it to the bell's 車内放送 instead of making it the bell's sound.
  * Server → client: a download, {@code id} being its hash ({@code pos} unused).
  */
-public record SoundChunk(BlockPos pos, String id, int total, int offset, byte[] data) implements CustomPacketPayload {
+public record SoundChunk(BlockPos pos, String id, boolean announcement, int total, int offset, byte[] data) implements CustomPacketPayload {
 
     public static final Type<SoundChunk> TYPE =
         new Type<>(ResourceLocation.fromNamespaceAndPath(TrainCabMod.MODID, "sound_chunk"));
@@ -24,6 +25,7 @@ public record SoundChunk(BlockPos pos, String id, int total, int offset, byte[] 
     public static final StreamCodec<ByteBuf, SoundChunk> STREAM_CODEC = StreamCodec.composite(
         BlockPos.STREAM_CODEC, SoundChunk::pos,
         ByteBufCodecs.stringUtf8(64), SoundChunk::id,
+        ByteBufCodecs.BOOL, SoundChunk::announcement,
         ByteBufCodecs.VAR_INT, SoundChunk::total,
         ByteBufCodecs.VAR_INT, SoundChunk::offset,
         ByteBufCodecs.byteArray(CustomSounds.CHUNK_SIZE), SoundChunk::data,

@@ -7,15 +7,21 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.client.CustomSoundClient;
 
-/** Server → everyone on board: a conductor's 車内放送. The client chimes and shows {@code text} for a while. */
-public record Announcement(String text) implements CustomPacketPayload {
+/**
+ * Server → everyone on board: a 車内放送. The client shows {@code text} for a while, and plays the uploaded sound
+ * {@code hash}, or just chimes when there is none.
+ */
+public record Announcement(String text, String hash) implements CustomPacketPayload {
 
     public static final Type<Announcement> TYPE =
         new Type<>(ResourceLocation.fromNamespaceAndPath(TrainCabMod.MODID, "announcement"));
 
-    public static final StreamCodec<ByteBuf, Announcement> STREAM_CODEC =
-        ByteBufCodecs.STRING_UTF8.map(Announcement::new, Announcement::text);
+    public static final StreamCodec<ByteBuf, Announcement> STREAM_CODEC = StreamCodec.composite(
+        ByteBufCodecs.STRING_UTF8, Announcement::text,
+        ByteBufCodecs.stringUtf8(64), Announcement::hash,
+        Announcement::new);
 
     // Last one received on the client and client ticks since then (the client chimes at age 0).
     public static Announcement latest;
@@ -29,5 +35,8 @@ public record Announcement(String text) implements CustomPacketPayload {
     public static void handle(Announcement announcement, IPayloadContext context) {
         latest = announcement;
         age = 0;
+        if (!announcement.hash.isEmpty()) {
+            CustomSoundClient.playOnBoard(announcement.hash);
+        }
     }
 }

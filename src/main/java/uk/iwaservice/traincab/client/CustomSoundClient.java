@@ -37,7 +37,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Client side of uploaded departure bell sounds: downloads them from the server into a cache
- * ({@code .minecraft/traincab/sound_cache/}, by hash) and plays them positioned at the bell.
+ * ({@code .minecraft/traincab/sound_cache/}, by hash) and plays them positioned at the bell, or unpositioned
+ * for a 車内放送 (keyed by a null position).
  */
 public final class CustomSoundClient {
 
@@ -134,25 +135,35 @@ public final class CustomSoundClient {
     }
 
     public static void onPlay(SoundPlay play) {
-        WAITING.remove(play.pos());
-        SoundInstance playing = PLAYING.remove(play.pos());
+        play(play.pos(), play.hash());
+    }
+
+    /** A 車内放送: heard the same anywhere on board, replacing the previous one. */
+    public static void playOnBoard(String hash) {
+        play(null, hash);
+    }
+
+    private static void play(@Nullable BlockPos pos, String hash) {
+        WAITING.remove(pos);
+        SoundInstance playing = PLAYING.remove(pos);
         if (playing != null) {
             Minecraft.getInstance().getSoundManager().stop(playing);
         }
-        if (play.hash().isEmpty()) {
+        if (hash.isEmpty()) {
             return;
         }
-        byte[] pcm = get(play.hash());
+        byte[] pcm = get(hash);
         if (pcm != null) {
-            start(play.pos(), pcm);
-        } else if (CustomSounds.isHash(play.hash())) {
-            // ponytail: starts from the beginning once downloaded, i.e. late; fine since bells prefetch on load.
-            WAITING.put(play.pos(), play.hash());
-            prefetch(play.hash());
+            start(pos, pcm);
+        } else if (CustomSounds.isHash(hash)) {
+            // ponytail: starts from the beginning once downloaded, i.e. late; bells prefetch on load and the
+            // conductor's menu prefetches, so only other passengers' first play is late.
+            WAITING.put(pos, hash);
+            prefetch(hash);
         }
     }
 
-    private static void start(BlockPos pos, byte[] pcm) {
+    private static void start(@Nullable BlockPos pos, byte[] pcm) {
         SoundInstance sound = new PcmSound(pcm, pos);
         PLAYING.put(pos, sound);
         Minecraft.getInstance().getSoundManager().play(sound);
@@ -170,10 +181,10 @@ public final class CustomSoundClient {
         }
     }
 
-    static void upload(BlockPos pos, String name, byte[] pcm) {
+    static void upload(BlockPos pos, String name, boolean announcement, byte[] pcm) {
         store(CustomSounds.sha1(pcm), pcm);
         for (int off = 0; off < pcm.length; off += CustomSounds.CHUNK_SIZE) {
-            PacketDistributor.sendToServer(new SoundChunk(pos, name, pcm.length, off,
+            PacketDistributor.sendToServer(new SoundChunk(pos, name, announcement, pcm.length, off,
                 Arrays.copyOfRange(pcm, off, Math.min(pcm.length, off + CustomSounds.CHUNK_SIZE))));
         }
     }

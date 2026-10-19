@@ -6,6 +6,7 @@ import com.simibubi.create.content.trains.entity.Carriage;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.Train;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -25,7 +26,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,7 +57,10 @@ public final class Conductor {
     public static final int EMERGENCY = 2;
     /** 合図ベル: rings for the driver and the conductor, whichever of them pressed it. */
     public static final int BELL = 3;
-    /** 車内放送: chime and "次は ○○ です" for everyone on board. By the conductor, or the driver when one-man. */
+    /**
+     * 車内放送: chime and "次は ○○ です" for everyone on board. By the conductor, or the driver when one-man.
+     * A conductor whose train carries a departure bell with 車内放送 gets the menu to pick from instead.
+     */
     public static final int ANNOUNCE = 4;
     /** 警笛: one blast of Create's train whistle. Driver only. */
     public static final int HORN = 5;
@@ -61,6 +68,8 @@ public final class Conductor {
     public static final int MUSIC_HORN = 6;
     /** 発車ベル / 発車メロディ from the nearest departure bell block. Conductor only. */
     public static final int DEPARTURE_BELL = 7;
+    /** The conductor's pick from the 車内放送 menu: arg is its index, or -1 for the usual chime and text. */
+    public static final int ANNOUNCE_CLIP = 8;
 
     private static final ResourceLocation WHISTLE_SOUND = ResourceLocation.fromNamespaceAndPath("create", "whistle_train");
     /** Horns carry: volume above 1 only widens the range (16 blocks per 1). */
@@ -251,7 +260,26 @@ public final class Conductor {
         }
     }
 
-    static void handle(ServerPlayer player, int action) {
+    /** 車内放送 on the first departure bell built into the train that has any. */
+    private static List<Clip> announcementsOf(Train train) {
+        for (Carriage carriage : train.carriages) {
+            CarriageContraptionEntity cce = carriage.anyAvailableEntity();
+            if (cce == null) {
+                continue;
+            }
+            for (StructureBlockInfo info : cce.getContraption().getBlocks().values()) {
+                if (info.state().is(TrainCabItems.DEPARTURE_BELL.get())) {
+                    List<Clip> clips = DepartureBellBlockEntity.readAnnouncements(info.nbt());
+                    if (!clips.isEmpty()) {
+                        return clips;
+                    }
+                }
+            }
+        }
+        return List.of();
+    }
+
+    static void handle(ServerPlayer player, int action, int arg) {
         Train train = conductingTrain(player);
         if (train == null) {
             train = Mascon.trainDrivenBy(player);
@@ -334,25 +362,42 @@ public final class Conductor {
                 if (!isConductor && !(crew == null && player.equals(Mascon.driverOf(train)))) {
                     return;
                 }
-                // Someone in an open doorway: the announcement becomes a door warning, and they hear it too.
-                LivingEntity trapped = crew != null && crew.doorsOpen ? trappedInDoor(train, player) : null;
-                Announcement announcement = new Announcement(trapped != null
-                    ? "ドアが閉まります。ドアから離れてください" : announcementText(train));
-                Set<ServerPlayer> listeners = new HashSet<>(onBoard(train));
-                listeners.add(player);
-                if (trapped instanceof ServerPlayer trappedPlayer) {
-                    listeners.add(trappedPlayer);
+                List<Clip> clips = isConductor ? announcementsOf(train) : List.of();
+                if (clips.isEmpty()) {
+                    announce(player, train, crew, null);
+                } else {
+                    PacketDistributor.sendToPlayer(player, new AnnouncementMenu(
+                        clips.stream().map(Clip::name).toList(), clips.stream().map(Clip::hash).toList()));
                 }
-                ServerPlayer driver = Mascon.driverOf(train);
-                if (driver != null) {
-                    listeners.add(driver);
-                }
-                for (ServerPlayer listener : listeners) {
-                    PacketDistributor.sendToPlayer(listener, announcement);
+            }
+            case ANNOUNCE_CLIP -> {
+                List<Clip> clips = announcementsOf(train);
+                if (isConductor && arg < clips.size()) {
+                    announce(player, train, crew, arg >= 0 ? clips.get(arg) : null);
                 }
             }
             default -> {
             }
+        }
+    }
+
+    /** Plays {@code clip}, or else chimes the usual text, for everyone on board, the driver and {@code player}. */
+    private static void announce(ServerPlayer player, Train train, Crew crew, Clip clip) {
+        // Someone in an open doorway: the text becomes a door warning, and they hear it too.
+        LivingEntity trapped = clip == null && crew != null && crew.doorsOpen ? trappedInDoor(train, player) : null;
+        Announcement announcement = clip != null ? new Announcement(clip.name(), clip.hash())
+            : new Announcement(trapped != null ? "ドアが閉まります。ドアから離れてください" : announcementText(train), "");
+        Set<ServerPlayer> listeners = new HashSet<>(onBoard(train));
+        listeners.add(player);
+        if (trapped instanceof ServerPlayer trappedPlayer) {
+            listeners.add(trappedPlayer);
+        }
+        ServerPlayer driver = Mascon.driverOf(train);
+        if (driver != null) {
+            listeners.add(driver);
+        }
+        for (ServerPlayer listener : listeners) {
+            PacketDistributor.sendToPlayer(listener, announcement);
         }
     }
 
