@@ -250,12 +250,12 @@ public final class Conductor {
     }
 
     /** The mascon holds a train still while its doors are open. */
-    static boolean doorsOpen(Train train) {
+    public static boolean doorsOpen(Train train) {
         Crew crew = CREWS.get(train.id);
         return crew != null && crew.doorsOpen;
     }
 
-    static boolean emergency(Train train) {
+    public static boolean emergency(Train train) {
         Crew crew = CREWS.get(train.id);
         return crew != null && crew.emergency;
     }
@@ -419,8 +419,10 @@ public final class Conductor {
     private static void announce(ServerPlayer player, Train train, Crew crew, Clip clip) {
         // Someone in an open doorway: the text becomes a door warning, and they hear it too.
         LivingEntity trapped = clip == null && crew != null && crew.doorsOpen ? trappedInDoor(train, player) : null;
-        Announcement announcement = clip != null ? new Announcement(clip.name(), clip.hash())
-            : new Announcement(trapped != null ? "ドアが閉まります。ドアから離れてください" : announcementText(train), "");
+        // A door warning isn't about the next stop, so it doesn't switch CRN's displays to it.
+        Announcement announcement = clip != null ? new Announcement(clip.name(), clip.hash(), train.id)
+            : trapped != null ? new Announcement("ドアが閉まります。ドアから離れてください", "", Announcement.NO_TRAIN)
+            : new Announcement(announcementText(train), "", train.id);
         Set<ServerPlayer> listeners = new HashSet<>(onBoard(train));
         listeners.add(player);
         if (trapped instanceof ServerPlayer trappedPlayer) {

@@ -2,6 +2,8 @@
   "block.traincab.speaker": "Speaker",
   "item.traincab.speaker_linker": "Speaker Linker",
   "itemGroup.traincab": "Train Cab HUD",
+  "gui.traincab.delay_cause.conductor_emergency": "Emergency brake applied by the conductor",
+  "gui.traincab.delay_cause.door_handling": "Delayed by door handling",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "Emergency Brake",
   "key.traincab.reverser_forward": "Reverser towards Forward (when stopped)",

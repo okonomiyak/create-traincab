@@ -2,6 +2,8 @@
   "block.traincab.speaker": "スピーカー",
   "item.traincab.speaker_linker": "スピーカー接続ツール",
   "itemGroup.traincab": "Train Cab HUD",
+  "gui.traincab.delay_cause.conductor_emergency": "車掌非常ブレーキ動作中",
+  "gui.traincab.delay_cause.door_handling": "ドア扱いのため遅れています",
   "key.categories.traincab": "Train Cab HUD",
   "key.traincab.emergency": "非常ブレーキ",
   "key.traincab.reverser_forward": "レバーサを前側へ（停車中のみ）",

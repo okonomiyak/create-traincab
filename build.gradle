@@ -18,6 +18,11 @@ repositories {
     // Registrate, a transitive compile-time dependency of Create (embedded via jar-in-jar at runtime,
     // but still needed on the compile classpath since Create declares it as an `api` dependency)
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
+    // Create Railways Navigator, for the optional integration (compat/crn); compile only
+    exclusiveContent {
+        forRepository { maven { url = 'https://api.modrinth.com/maven' } }
+        filter { includeGroup 'maven.modrinth' }
+    }
     mavenCentral()
 }
 
@@ -62,6 +67,12 @@ dependencies {
 
     // MP3 decoder for uploaded departure bell sounds (LGPL-2.1), shipped inside our jar.
     jarJar(implementation("javazoom:jlayer:1.0.1"))
+
+    // Optional: Create Railways Navigator 0.10.0 (1.21.1-beta-0.10.0-C6). Only compiled against; the
+    // integration runs when it is installed.
+    compileOnly "maven.modrinth:create-railways-navigator:rlsRwxq3"
+    // DragonLib 3.0.29, which CRN's classes build on
+    compileOnly "maven.modrinth:dragonlib:y30Bx41r"
     additionalRuntimeClasspath "javazoom:jlayer:1.0.1"
 }
 
