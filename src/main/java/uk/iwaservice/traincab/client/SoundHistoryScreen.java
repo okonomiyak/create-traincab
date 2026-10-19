@@ -85,8 +85,8 @@ class SoundHistoryScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         if (CustomSoundClient.history().isEmpty()) {
-            g.drawCenteredString(font, "まだありません（アップロードした音声がここに残ります）", width / 2, top() + 36, GREY);
+            CreateGui.centered(g, font, "まだありません(アップロードした音声が残ります)", width / 2, top() + 36, GREY);
         }
-        g.drawCenteredString(font, status, width / 2, top() + 16, GREY);
+        CreateGui.centered(g, font, status.getString(), width / 2, top() + 16, GREY);
     }
 }

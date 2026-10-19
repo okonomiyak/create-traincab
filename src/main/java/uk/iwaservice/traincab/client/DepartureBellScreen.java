@@ -315,7 +315,7 @@ public class DepartureBellScreen extends Screen {
         byte[] sound = CustomSoundClient.get(hash);
         if (sound == null) {
             CustomSoundClient.prefetch(hash);
-            status = Component.literal("ダウンロード中です。少し待ってからもう一度押してください");
+            status = Component.literal("ダウンロード中…少ししてからもう一度押してください");
         }
         CustomSoundClient.preview(sound);
     }
@@ -354,8 +354,8 @@ public class DepartureBellScreen extends Screen {
         int y = top() + 66;
         if (tab == SoundChunk.ANNOUNCEMENT) {
             DepartureBellBlockEntity bell = trainBell();
-            g.drawCenteredString(font, "列車に組み込むと、車掌が N で選んで流せます", cx, y - 24, GREY);
-            g.drawCenteredString(font, "（最大 " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本・ドラッグ＆ドロップでも追加できます）",
+            CreateGui.centered(g, font, "列車に積むと、車掌が N で選んで流せます", cx, y - 24, GREY);
+            CreateGui.centered(g, font, "最大 " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本・ドラッグ＆ドロップでも追加可",
                 cx, y - 13, GREY);
             List<Clip> clips = bell == null ? List.of() : bell.announcements();
             for (int i = 0; i < clips.size(); i++) {
@@ -365,23 +365,23 @@ public class DepartureBellScreen extends Screen {
             if (clips.isEmpty()) {
                 g.drawString(font, "まだありません", x, y + 6, GREY);
             }
-            g.drawCenteredString(font, status, cx, y + ROW_H * Math.max(clips.size(), 1) + 28, GREY);
+            CreateGui.centered(g, font, status.getString(), cx, y + ROW_H * Math.max(clips.size(), 1) + 28, GREY);
         } else {
-            g.drawCenteredString(font, "現在: " + current(bell()), cx, y - 24, WHITE);
+            CreateGui.centered(g, font, "現在: " + current(bell()), cx, y - 24, WHITE);
             if (tab == SoundChunk.MUSIC_HORN && status.getString().isEmpty()) {
-                g.drawCenteredString(font, "列車に組み込むと、運転士が M で鳴らせます", cx, y + 48, GREY);
+                CreateGui.centered(g, font, "列車に積むと、運転士が M で鳴らせます", cx, y + 48, GREY);
             }
             if (tab == SoundChunk.APPROACH && status.getString().isEmpty()) {
-                g.drawCenteredString(font, trainBell() != null ? "近くの駅（32 ブロック以内）に停まる列車が近づくと鳴ります"
+                CreateGui.centered(g, font, trainBell() != null ? "近く(32 ブロック内)の駅に列車が近づくと鳴ります"
                     : "ここに停まる列車が近づくと、駅で鳴ります", cx, y + 48, GREY);
             }
             if (tab == SoundChunk.APPROACH && bell() != null) {
-                g.drawCenteredString(font, "鳴らし始める距離（線路に沿って）", cx, y + 86, GREY);
-                g.drawCenteredString(font, bell().approachDistance() + " m", cx, y + 104, WHITE);
+                CreateGui.centered(g, font, "鳴らし始める距離（線路に沿って）", cx, y + 86, GREY);
+                CreateGui.centered(g, font, bell().approachDistance() + " m", cx, y + 104, WHITE);
             }
-            g.drawCenteredString(font, pcm != null ? "選択中: " + fileName + " (" + seconds(pcm.length) + ")"
-                : "mp3 / wav / ogg をここへドラッグ＆ドロップしても選べます", cx, y - 12, GREY);
-            g.drawCenteredString(font, status, cx, y + 48, GREY);
+            CreateGui.centered(g, font, pcm != null ? "選択中: " + fileName + " (" + seconds(pcm.length) + ")"
+                : "ドラッグ＆ドロップでも選べます (mp3/wav/ogg)", cx, y - 12, GREY);
+            CreateGui.centered(g, font, status.getString(), cx, y + 48, GREY);
         }
     }
 
