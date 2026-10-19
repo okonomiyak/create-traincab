@@ -41,15 +41,15 @@ public final class AdvancedCabHandle {
 
     /**
      * Degrees of tilt about the x axis: like a real one-handle master controller, power pulls it towards the driver
-     * (negative) and braking pushes it away. The desk leaves only about 16° on the far side, so N already leans a
-     * little towards the driver and the brake notches are smaller steps.
+     * (negative) and braking pushes it away. N leans 30° towards the driver, which leaves room for the brake
+     * notches before the desk (about 16° on the far side).
      */
     static float angle(int notch) {
-        float n = -10f;
+        float n = -30f;
         if (notch > 0) {
-            return n - 9f * notch;
+            return n - 8f * notch;
         }
-        return notch == Mascon.EB ? n + 25f : n - 3f * notch;
+        return notch == Mascon.EB ? n + 45f : n - 5f * notch;
     }
 
     /** Every client tick: chases the angle of the notch this player holds the handle in, if it is theirs. */
