@@ -102,7 +102,9 @@ public class DepartureBellScreen extends Screen {
     /** The 発車ベル, MH or 接近メロディ tab. */
     private void initSingle(int x, int y, BellSound bell) {
         addRenderableWidget(Button.builder(Component.literal("ファイルを選ぶ…"), b -> choose())
-            .bounds(x, y, 200, 20).build()).active = !loading;
+            .bounds(x, y, 98, 20).build()).active = !loading;
+        addRenderableWidget(Button.builder(Component.literal("履歴から選ぶ…"), b -> openHistory())
+            .bounds(x + 102, y, 98, 20).build()).active = !loading;
         addRenderableWidget(Button.builder(Component.literal("試聴"), b -> previewBell())
             .bounds(x, y + 24, 98, 20).build()).active = pcm != null || uploaded(bell) != null;
         addRenderableWidget(Button.builder(Component.literal("アップロードして保存"), b -> {
@@ -140,11 +142,29 @@ public class DepartureBellScreen extends Screen {
             }).bounds(x + 180, y + ROW_H * i, 20, 20).build());
         }
         int bottom = y + ROW_H * Math.max(clips.size(), 1) + 4;
+        boolean room = !loading && clips.size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS;
         addRenderableWidget(Button.builder(Component.literal("追加…"), b -> choose())
-            .bounds(x, bottom, 98, 20).build()).active =
-            !loading && clips.size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS;
+            .bounds(x, bottom, 64, 20).build()).active = room;
+        addRenderableWidget(Button.builder(Component.literal("履歴…"), b -> openHistory())
+            .bounds(x + 68, bottom, 64, 20).build()).active = room;
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-            .bounds(x + 102, bottom, 98, 20).build());
+            .bounds(x + 136, bottom, 64, 20).build());
+    }
+
+    private void openHistory() {
+        minecraft.setScreen(new SoundHistoryScreen(this));
+    }
+
+    /** A sound picked from the history: like a file just loaded, but already decoded. */
+    void pick(String name, byte[] sound) {
+        if (tab == SoundChunk.ANNOUNCEMENT) {
+            CustomSoundClient.upload(pos, name, SoundChunk.ANNOUNCEMENT, sound);
+            status = Component.literal("「" + name + "」をアップロードしました");
+        } else {
+            fileName = name;
+            pcm = sound;
+            status = Component.empty();
+        }
     }
 
     private void switchTab(int target) {
