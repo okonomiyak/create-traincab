@@ -42,10 +42,14 @@ final class VvvfSynth {
     private static final double ROLL_GAIN = 3.052;
     private static final double FAN_GAIN = 1.063;
     private static final double OUT_GAIN = 0.08;
-    // By ear (raised from the reference's 0.18 / 0.05 / none for more noise).
-    private static final double ROLL = 0.6;
-    private static final double FAN = 0.15;
-    private static final double MAGNETIC_NOISE = 0.6;
+    // Rolling and fan noise as in the reference; the motor's hum and whine are by ear.
+    private static final double ROLL = 0.18;
+    private static final double FAN = 0.05;
+    /** The 2f hum of the magnetic pull on the stator. */
+    private static final double HUM = 0.35;
+    /** Rotor slot whine at {@link #SLOT_RATIO} × f, rising with speed like a real motor. */
+    private static final double WHINE = 0.12;
+    private static final double SLOT_RATIO = 22;
 
     volatile double target;
     volatile int state = COAST;
@@ -57,8 +61,11 @@ final class VvvfSynth {
     private double phase;
     private double carrierPhase;
     private double gearPhase;
+    private double slotPhase;
     private final SplittableRandom random = new SplittableRandom();
     private final Biquad lowpass = Biquad.lowpass1(450);
+    /** The windings' inductance also takes the edge off the PWM's highest harmonics. */
+    private final Biquad inductance = Biquad.lowpass(1200);
     private final Biquad highpass = Biquad.highpass(70);
     private final Biquad rollHigh = Biquad.highpass(150);
     private final Biquad rollLow = Biquad.lowpass(2500);
@@ -104,16 +111,18 @@ final class VvvfSynth {
             } else {
                 phase = frac(phase + f / FS);
             }
-            double current = highpass.process(lowpass.process(pwm)) * CURRENT_GAIN * gate;
+            double current = highpass.process(inductance.process(lowpass.process(pwm))) * CURRENT_GAIN * gate;
 
             double ripple = (0.35 * Math.sin(2 * Math.PI * 6 * phase) + 0.18 * Math.sin(2 * Math.PI * 12 * phase))
                 * Math.min(0.3 + spd, 1.2) * gate;
             gearPhase = frac(gearPhase + 8 * f / FS);
             double gear = (Math.sin(2 * Math.PI * gearPhase) + 0.5 * Math.sin(4 * Math.PI * gearPhase)
                 + 0.25 * Math.sin(6 * Math.PI * gearPhase)) * 0.22 * spd * (0.6 + 0.4 * gate);
+            slotPhase = frac(slotPhase + SLOT_RATIO * f / FS);
             double noise = random.nextDouble(-1.7320508, 1.7320508);
-            // Switching / magnetic hiss while the inverter runs, coloured by the resonances below.
-            double src = current + ripple + gear + MAGNETIC_NOISE * noise * gate;
+            double motor = HUM * Math.sin(4 * Math.PI * phase) * Math.min(0.3 + spd, 1)
+                + WHINE * Math.sin(2 * Math.PI * slotPhase) * Math.sqrt(spd);
+            double src = current + ripple + gear + motor * gate;
             double body = src;
             for (int r = 0; r < resonances.length; r++) {
                 body += RESONANCES[r][2] * resonances[r].process(src);
