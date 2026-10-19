@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
+import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 
 import java.util.function.Supplier;
@@ -32,16 +33,18 @@ public record BellEdit(BlockPos pos, int op) {
         if (player == null) {
             return;
         }
-        DepartureBellBlockEntity be = CustomSounds.editable(player, edit.pos);
+        BellSound be = CustomSounds.editable(player, edit.pos);
         if (be == null) {
             return;
         }
         if (edit.op == MELODY || edit.op == BELL) {
             be.setBuiltin(edit.op == MELODY);
+        } else if (!(be instanceof DepartureBellBlockEntity bell)) {
+            return;
         } else if (edit.op == MUSIC_HORN) {
-            be.setMusicHorn(null);
+            bell.setMusicHorn(null);
         } else {
-            be.removeAnnouncement(edit.op);
+            bell.removeAnnouncement(edit.op);
         }
     }
 }

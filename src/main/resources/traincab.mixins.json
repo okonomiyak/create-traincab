@@ -6,7 +6,8 @@
   "mixins": [
     "TrainMixin",
     "SlidingDoorMixin",
-    "CarriageContraptionMixin"
+    "CarriageContraptionMixin",
+    "ScheduleRuntimeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

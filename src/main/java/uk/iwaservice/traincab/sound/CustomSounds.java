@@ -12,6 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import org.slf4j.Logger;
 import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.mascon.TrainCabNetwork;
 
@@ -98,8 +99,8 @@ public final class CustomSounds {
             () -> new PacketDistributor.TargetPoint(driver.getX(), driver.getY(), driver.getZ(), HORN_RANGE, driver.serverLevel().dimension())), new SoundPlay(BlockPos.ZERO, driver.getId(), hash));
     }
 
-    /** The departure bell at {@code pos} if {@code player} may change it, else null. */
-    static DepartureBellBlockEntity editable(ServerPlayer player, BlockPos pos) {
+    /** The departure bell (block or 高度駅) at {@code pos} if {@code player} may change it, else null. */
+    static BellSound editable(ServerPlayer player, BlockPos pos) {
         if (TrainCabServerConfig.uploadOpOnly && !player.hasPermissions(2)) {
             player.displayClientMessage(Component.literal("発車ベルの音を変更できるのは OP のみです"), true);
             return null;
@@ -109,7 +110,7 @@ public final class CustomSounds {
             || !player.mayBuild() || !level.mayInteract(player, pos)) {
             return null;
         }
-        return level.getBlockEntity(pos) instanceof DepartureBellBlockEntity be ? be : null;
+        return level.getBlockEntity(pos) instanceof BellSound be ? be : null;
     }
 
     static void receive(ServerPlayer player, SoundChunk chunk) {
@@ -117,11 +118,13 @@ public final class CustomSounds {
         int now = player.server.getTickCount();
         if (chunk.offset() == 0) {
             UPLOADS.remove(id);
-            DepartureBellBlockEntity be = editable(player, chunk.pos());
-            if (be == null) {
+            BellSound be = editable(player, chunk.pos());
+            // 車内放送 and MH belong to departure bell blocks, which can be built into a train.
+            if (be == null || chunk.target() != SoundChunk.BELL && !(be instanceof DepartureBellBlockEntity)) {
                 return;
             }
-            if (chunk.target() == SoundChunk.ANNOUNCEMENT && be.announcements().size() >= DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
+            if (chunk.target() == SoundChunk.ANNOUNCEMENT
+                && ((DepartureBellBlockEntity) be).announcements().size() >= DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
                 player.displayClientMessage(Component.literal(
                     "車内放送は " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本までです"), true);
                 return;
@@ -159,7 +162,7 @@ public final class CustomSounds {
             return;
         }
         UPLOADS.remove(id);
-        DepartureBellBlockEntity be = editable(player, u.pos);
+        BellSound be = editable(player, u.pos);
         if (be == null) {
             return;
         }
@@ -177,14 +180,16 @@ public final class CustomSounds {
         }
         LAST_UPLOAD.put(id, now);
         DepartureBellBlockEntity.Clip clip = new DepartureBellBlockEntity.Clip(hash, u.name, u.data.length);
-        if (u.target == SoundChunk.MUSIC_HORN) {
-            be.setMusicHorn(clip);
-            player.displayClientMessage(Component.literal("ミュージックホーンを「" + u.name + "」にしました"), true);
-        } else if (u.target != SoundChunk.ANNOUNCEMENT) {
+        if (u.target == SoundChunk.BELL) {
             be.setSound(hash, u.name, u.data.length);
             player.displayClientMessage(Component.literal("発車ベルを「" + u.name + "」にしました"), true);
-        } else if (be.announcements().size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
-            be.addAnnouncement(clip);
+        } else if (!(be instanceof DepartureBellBlockEntity bell)) {
+            return;
+        } else if (u.target == SoundChunk.MUSIC_HORN) {
+            bell.setMusicHorn(clip);
+            player.displayClientMessage(Component.literal("ミュージックホーンを「" + u.name + "」にしました"), true);
+        } else if (bell.announcements().size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
+            bell.addAnnouncement(clip);
             player.displayClientMessage(Component.literal("車内放送「" + u.name + "」を追加しました"), true);
         }
     }

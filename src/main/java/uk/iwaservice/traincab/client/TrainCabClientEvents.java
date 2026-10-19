@@ -1,8 +1,10 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.content.trains.station.StationRenderer;
 import net.createmod.catnip.config.ui.BaseConfigScreen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.ConfigScreenHandler;
+import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -10,6 +12,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabMod;
 
 /** Forge 1.20.1 still splits listeners by bus: registration events on the mod bus, ticks on the game bus. */
@@ -30,6 +33,12 @@ public final class TrainCabClientEvents {
             ModList.get().getModContainerById(TrainCabMod.MODID).ifPresent(container -> container.registerExtensionPoint(
                 ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory((mc, parent) -> new BaseConfigScreen(parent, TrainCabMod.MODID))));
+        }
+
+        /** The 高度駅 draws its flag like Create's station. */
+        @SubscribeEvent
+        static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+            event.registerBlockEntityRenderer(TrainCabItems.ADVANCED_STATION_ENTITY.get(), StationRenderer::new);
         }
 
         @SubscribeEvent

@@ -1,10 +1,14 @@
 package uk.iwaservice.traincab;
 
+import com.simibubi.create.AllDisplaySources;
+import com.simibubi.create.api.behaviour.display.DisplaySource;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsInteractionBehaviour;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsMovementBehaviour;
+import com.simibubi.create.content.trains.graph.EdgePointType;
+import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -19,6 +23,8 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import uk.iwaservice.traincab.block.AdvancedStationBlock;
+import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlock;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.item.ConductorCapItem;
@@ -52,6 +58,18 @@ public final class TrainCabItems {
         BLOCK_ENTITIES.register("departure_bell",
             () -> BlockEntityType.Builder.of(DepartureBellBlockEntity::new, DEPARTURE_BELL.get()).build(null));
 
+    /** 高度駅: Create's train station with a departure bell built in, rung for scheduled trains too. */
+    public static final RegistryObject<AdvancedStationBlock> ADVANCED_STATION = BLOCKS.register("advanced_station",
+        () -> new AdvancedStationBlock(BlockBehaviour.Properties.of().mapColor(MapColor.PODZOL).strength(1.5f)
+            .sound(SoundType.NETHERITE_BLOCK)));
+    /** Placed by clicking the track first, like Create's station. */
+    public static final RegistryObject<Item> ADVANCED_STATION_ITEM = ITEMS.register("advanced_station",
+        () -> new TrackTargetingBlockItem(ADVANCED_STATION.get(), new Item.Properties(), EdgePointType.STATION));
+    public static final RegistryObject<BlockEntityType<AdvancedStationBlockEntity>> ADVANCED_STATION_ENTITY =
+        BLOCK_ENTITIES.register("advanced_station", () -> BlockEntityType.Builder.of(
+            (pos, state) -> new AdvancedStationBlockEntity(TrainCabItems.ADVANCED_STATION_ENTITY.get(), pos, state),
+            ADVANCED_STATION.get()).build(null));
+
     public static final RegistryObject<Item> CONDUCTOR_CAP =
         ITEMS.register("conductor_cap", () -> new ConductorCapItem(new Item.Properties().stacksTo(1)));
 
@@ -67,6 +85,9 @@ public final class TrainCabItems {
             // Same behaviours Create gives its own controls: right-click to drive, animated lever.
             MovingInteractionBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new ControlsInteractionBehaviour());
             MovementBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new ControlsMovementBehaviour());
+            // Display links can read a 高度駅 like Create's station.
+            DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.STATION_SUMMARY.get());
+            DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.TRAIN_STATUS.get());
         }));
         modEventBus.addListener((BuildCreativeModeTabContentsEvent event) -> {
             if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
@@ -74,6 +95,7 @@ public final class TrainCabItems {
                 event.accept(CONDUCTOR_PANEL_ITEM);
                 event.accept(ADVANCED_CAB_ITEM);
                 event.accept(DEPARTURE_BELL_ITEM);
+                event.accept(ADVANCED_STATION_ITEM);
             }
         });
     }
