@@ -107,7 +107,8 @@ final class VvvfSynth {
             // Follow the game's 20 Hz updates smoothly (~50 ms), and fade the inverter in / out over 0.2 s.
             f += (target - f) * (1.0 / 2400);
             gate += Math.max(-1.0 / 9600, Math.min(1.0 / 9600, gateTarget - gate));
-            double cp = compressor.next();
+            // Only heard at low speed: fades out between 10 and 20 Hz (~14–27 km/h at Create's top speed).
+            double cp = compressor.next() * Math.max(0, Math.min((20 - f) / 10, 1));
             if (f < 1e-3 && gate <= 0) {
                 // Standing still: only the compressor, and the reflections ringing out.
                 out[i] = (float) (distant(cp) * OUT_GAIN * volume);
