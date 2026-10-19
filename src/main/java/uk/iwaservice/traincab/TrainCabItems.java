@@ -18,6 +18,7 @@ import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import uk.iwaservice.traincab.block.DepartureBellBlock;
 import uk.iwaservice.traincab.item.ConductorCapItem;
 import uk.iwaservice.traincab.mascon.ConductorPanelInteraction;
 
@@ -35,6 +36,11 @@ public final class TrainCabItems {
     public static final DeferredBlock<ControlsBlock> ADVANCED_CAB = BLOCKS.register("advanced_cab", () -> new ControlsBlock(
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL).noOcclusion()));
     public static final DeferredItem<BlockItem> ADVANCED_CAB_ITEM = ITEMS.registerSimpleBlockItem(ADVANCED_CAB);
+
+    /** 発車ベル: on the platform, rung by a conductor stopped nearby. */
+    public static final DeferredBlock<DepartureBellBlock> DEPARTURE_BELL = BLOCKS.register("departure_bell",
+        () -> new DepartureBellBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL)));
+    public static final DeferredItem<BlockItem> DEPARTURE_BELL_ITEM = ITEMS.registerSimpleBlockItem(DEPARTURE_BELL);
 
     public static final DeferredItem<Item> CONDUCTOR_CAP =
         ITEMS.register("conductor_cap", () -> new ConductorCapItem(new Item.Properties().stacksTo(1)));
@@ -56,6 +62,7 @@ public final class TrainCabItems {
                 event.accept(CONDUCTOR_CAP);
                 event.accept(CONDUCTOR_PANEL_ITEM);
                 event.accept(ADVANCED_CAB_ITEM);
+                event.accept(DEPARTURE_BELL_ITEM);
             }
         });
     }

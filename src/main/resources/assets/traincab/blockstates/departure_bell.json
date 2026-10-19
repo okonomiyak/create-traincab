@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "melody=true": {
+      "model": "traincab:block/departure_bell_melody"
+    },
+    "melody=false": {
+      "model": "traincab:block/departure_bell_bell"
+    }
+  }
+}

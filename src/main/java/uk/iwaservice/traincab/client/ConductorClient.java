@@ -25,6 +25,8 @@ public final class ConductorClient {
         new KeyMapping("key.traincab.bell", GLFW.GLFW_KEY_B, "key.categories.traincab");
     public static final KeyMapping ANNOUNCE =
         new KeyMapping("key.traincab.announce", GLFW.GLFW_KEY_N, "key.categories.traincab");
+    public static final KeyMapping DEPARTURE_BELL =
+        new KeyMapping("key.traincab.departure_bell", GLFW.GLFW_KEY_J, "key.categories.traincab");
     public static final KeyMapping HORN =
         new KeyMapping("key.traincab.horn", GLFW.GLFW_KEY_H, "key.categories.traincab");
     public static final KeyMapping MUSIC_HORN =
@@ -45,6 +47,10 @@ public final class ConductorClient {
             }
         }
         Announcement.age++;
+        boolean departureBell = false;
+        while (DEPARTURE_BELL.consumeClick()) {
+            departureBell = true;
+        }
         boolean doors = false;
         while (DOORS.consumeClick()) {
             doors = true;
@@ -84,6 +90,9 @@ public final class ConductorClient {
         }
         if (doors) {
             send(Conductor.TOGGLE_DOORS);
+        }
+        if (departureBell) {
+            send(Conductor.DEPARTURE_BELL);
         }
         if (emergencyPressed) {
             send(Conductor.EMERGENCY);

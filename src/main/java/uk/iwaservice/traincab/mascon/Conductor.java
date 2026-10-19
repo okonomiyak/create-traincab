@@ -59,6 +59,8 @@ public final class Conductor {
     public static final int HORN = 5;
     /** ミュージックホーン: a short melody, separate from the horn. Driver only. */
     public static final int MUSIC_HORN = 6;
+    /** 発車ベル / 発車メロディ from the nearest departure bell block. Conductor only. */
+    public static final int DEPARTURE_BELL = 7;
 
     private static final ResourceLocation WHISTLE_SOUND = ResourceLocation.fromNamespaceAndPath("create", "whistle_train");
     /** Horns carry: volume above 1 only widens the range (16 blocks per 1). */
@@ -270,6 +272,10 @@ public final class Conductor {
                     return;
                 }
                 if (crew.doorsOpen) {
+                    if (DepartureBell.isRinging(train)) {
+                        notify(player, "発車ベル鳴動中は戸閉できません");
+                        return;
+                    }
                     LivingEntity trapped = trappedInDoor(train, player);
                     if (trapped != null) {
                         notify(player, "戸挟み検知: " + trapped.getName().getString() + "（戸閉できません）");
@@ -313,6 +319,11 @@ public final class Conductor {
                         SoundSource.BLOCKS, HORN_VOLUME, 1f);
                 }
             }
+            case DEPARTURE_BELL -> {
+                if (isConductor) {
+                    DepartureBell.toggle(player, train);
+                }
+            }
             case MUSIC_HORN -> {
                 if (player.equals(Mascon.driverOf(train))) {
                     MUSIC_HORNS.putIfAbsent(player, 0);
@@ -347,6 +358,7 @@ public final class Conductor {
 
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
+        DepartureBell.tick();
         for (Iterator<Map.Entry<ServerPlayer, Integer>> it = MUSIC_HORNS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<ServerPlayer, Integer> entry = it.next();
             int tick = entry.getValue();
