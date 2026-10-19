@@ -209,6 +209,7 @@ Create の運転台(または高度運転台)で運転を始めると、Create �
   - 信号は両方向に通れる(逆向きに走る列車にとっても普通の信号になる)。
   - 線路を作り直したり駅を動かしたりすると、置き直される。高度駅を壊すと一緒に消える。
 - 駅の上に **出発合図の灯** がある。先の閉塞が空いていて、停まっている列車の発車メロディが鳴っていないときは緑、それ以外は赤。
+- Create の信号と同じように、高度駅に **ニキシー管** を貼り付けると、出発合図の灯と同じ赤・緑を表示する(ComputerCraft から制御中のニキシー管は除く)。
 
 ### 4.5 車掌非常
 
@@ -316,6 +317,7 @@ Create の HUD 速度更新パケットも、運転中は毎 tick 送る(針を�
 | `SlidingDoorMovementBehaviour.shouldOpen` | 車掌がいる列車のドア開閉を車掌の操作に従わせる |
 | `CarriageContraption.capture` / `inControl` | 高度運転台を Create の運転台として認識させる |
 | `ScheduleRuntime.startCurrentInstruction` | 高度駅で、自動運転の列車の発車を発車メロディが鳴り終わるまで待たせる |
+| `NixieTubeBlockEntity.tick` | 高度駅に貼り付けたニキシー管に、出発合図の赤・緑を表示する |
 | `TrackEdgePoint.invalidateAt` | 線路が変わったとき、高度駅の出発信号のデータが駅のデータを上書きしないようにする(信号は高度駅が置き直す) |
 
 ---

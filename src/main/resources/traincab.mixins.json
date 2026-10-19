@@ -8,7 +8,8 @@
     "SlidingDoorMixin",
     "CarriageContraptionMixin",
     "ScheduleRuntimeMixin",
-    "TrackEdgePointMixin"
+    "TrackEdgePointMixin",
+    "NixieTubeBlockEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
