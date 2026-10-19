@@ -1,11 +1,12 @@
 modLoader="javafml"
 loaderVersion="[47,)"
-license="GPL-3.0-only"
+license="MIT"
 
 [[mods]]
 modId="traincab"
 version="${file.jarVersion}"
 displayName="Train Cab HUD"
+authors="okonomiyak"
 description='''Cab HUD and driving simulation for Create trains: a stepped master controller (P5..N..B7/EB) with reverser, station stop assist with stop-position grading, conductor duty with real door control, signal bell and on-board announcements, an advanced cab with a brake cylinder pressure gauge, and a horn and music horn.'''
 
 [[dependencies.traincab]]
