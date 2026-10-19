@@ -5,14 +5,14 @@ import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import uk.iwaservice.traincab.TrainCabMod;
-import uk.iwaservice.traincab.sound.BellMode;
+import uk.iwaservice.traincab.sound.BellEdit;
 import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
 
 public final class TrainCabNetwork {
 
-    private static final String PROTOCOL_VERSION = "7";
+    private static final String PROTOCOL_VERSION = "8";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         new ResourceLocation(TrainCabMod.MODID, "main"),
@@ -65,15 +65,20 @@ public final class TrainCabNetwork {
             .decoder(SoundRequest::decode)
             .consumerMainThread(SoundRequest::handle)
             .add();
-        CHANNEL.messageBuilder(BellMode.class, 8, NetworkDirection.PLAY_TO_SERVER)
-            .encoder(BellMode::encode)
-            .decoder(BellMode::decode)
-            .consumerMainThread(BellMode::handle)
+        CHANNEL.messageBuilder(BellEdit.class, 8, NetworkDirection.PLAY_TO_SERVER)
+            .encoder(BellEdit::encode)
+            .decoder(BellEdit::decode)
+            .consumerMainThread(BellEdit::handle)
             .add();
         CHANNEL.messageBuilder(SoundPlay.class, 9, NetworkDirection.PLAY_TO_CLIENT)
             .encoder(SoundPlay::encode)
             .decoder(SoundPlay::decode)
             .consumerMainThread(SoundPlay::handle)
+            .add();
+        CHANNEL.messageBuilder(AnnouncementMenu.class, 10, NetworkDirection.PLAY_TO_CLIENT)
+            .encoder(AnnouncementMenu::encode)
+            .decoder(AnnouncementMenu::decode)
+            .consumerMainThread(AnnouncementMenu::handle)
             .add();
     }
 }

@@ -46,6 +46,7 @@ public final class CustomSounds {
     private static final class Upload {
         BlockPos pos;
         String name;
+        boolean announcement;
         byte[] data;
         int received;
     }
@@ -108,7 +109,13 @@ public final class CustomSounds {
         int now = player.server.getTickCount();
         if (chunk.offset() == 0) {
             UPLOADS.remove(id);
-            if (editable(player, chunk.pos()) == null) {
+            DepartureBellBlockEntity be = editable(player, chunk.pos());
+            if (be == null) {
+                return;
+            }
+            if (chunk.announcement() && be.announcements().size() >= DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
+                player.displayClientMessage(Component.literal(
+                    "車内放送は " + DepartureBellBlockEntity.MAX_ANNOUNCEMENTS + " 本までです"), true);
                 return;
             }
             if (chunk.total() <= 0 || chunk.total() % 2 != 0
@@ -125,6 +132,7 @@ public final class CustomSounds {
             Upload upload = new Upload();
             upload.pos = chunk.pos();
             upload.name = chunk.id();
+            upload.announcement = chunk.announcement();
             upload.data = new byte[chunk.total()];
             UPLOADS.put(id, upload);
         }
@@ -160,8 +168,13 @@ public final class CustomSounds {
             return;
         }
         LAST_UPLOAD.put(id, now);
-        be.setSound(hash, u.name, u.data.length);
-        player.displayClientMessage(Component.literal("発車ベルを「" + u.name + "」にしました"), true);
+        if (!u.announcement) {
+            be.setSound(hash, u.name, u.data.length);
+            player.displayClientMessage(Component.literal("発車ベルを「" + u.name + "」にしました"), true);
+        } else if (be.announcements().size() < DepartureBellBlockEntity.MAX_ANNOUNCEMENTS) {
+            be.addAnnouncement(new DepartureBellBlockEntity.Clip(hash, u.name, u.data.length));
+            player.displayClientMessage(Component.literal("車内放送「" + u.name + "」を追加しました"), true);
+        }
     }
 
     // ponytail: no rate limit, a client re-requesting only wastes its own bandwidth; add one if servers see abuse.
@@ -177,7 +190,7 @@ public final class CustomSounds {
             return;
         }
         for (int off = 0; off < data.length; off += CHUNK_SIZE) {
-            TrainCabNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SoundChunk(BlockPos.ZERO, hash, data.length, off,
+            TrainCabNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SoundChunk(BlockPos.ZERO, hash, false, data.length, off,
                 Arrays.copyOfRange(data, off, Math.min(data.length, off + CHUNK_SIZE))));
         }
     }
