@@ -9,7 +9,8 @@
     "CarriageContraptionMixin",
     "ScheduleRuntimeMixin",
     "TrackEdgePointMixin",
-    "NixieTubeBlockEntityMixin"
+    "NixieTubeBlockEntityMixin",
+    "GlobalStationMixin"
   ],
   "injectors": {
     "defaultRequire": 1
