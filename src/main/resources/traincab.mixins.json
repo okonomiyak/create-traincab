@@ -12,6 +12,9 @@
     "NixieTubeBlockEntityMixin",
     "GlobalStationMixin"
   ],
+  "client": [
+    "StationRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }
