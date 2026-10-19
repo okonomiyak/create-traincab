@@ -50,6 +50,12 @@ final class VvvfSynth {
     /** Rotor slot whine at {@link #SLOT_RATIO} × f, rising with speed like a real motor. */
     private static final double WHINE = 0.12;
     private static final double SLOT_RATIO = 22;
+    // Heard from a distance / through the floor: highs fade and the reflections off the surroundings blur it.
+    private static final double DISTANT_CUTOFF = 1600;
+    /** Reflection delays in samples (~37 / 53 / 71 ms) and their feedback; how much of them is mixed in. */
+    private static final int[] ECHO_DELAYS = {1777, 2539, 3407};
+    private static final double ECHO_FEEDBACK = 0.45;
+    private static final double ECHO_MIX = 0.35;
 
     volatile double target;
     volatile int state = COAST;
@@ -71,10 +77,16 @@ final class VvvfSynth {
     private final Biquad rollLow = Biquad.lowpass(2500);
     private final Biquad fanHigh = Biquad.highpass(2500);
     private final Biquad[] resonances = new Biquad[RESONANCES.length];
+    private final Biquad distant = Biquad.lowpass(DISTANT_CUTOFF);
+    private final double[][] echoes = new double[ECHO_DELAYS.length][];
+    private final int[] echoAt = new int[ECHO_DELAYS.length];
 
     VvvfSynth() {
         for (int i = 0; i < resonances.length; i++) {
             resonances[i] = Biquad.peak(RESONANCES[i][0], RESONANCES[i][1]);
+        }
+        for (int i = 0; i < echoes.length; i++) {
+            echoes[i] = new double[ECHO_DELAYS[i]];
         }
     }
 
@@ -91,7 +103,8 @@ final class VvvfSynth {
             f += (target - f) * (1.0 / 2400);
             gate += Math.max(-1.0 / 9600, Math.min(1.0 / 9600, gateTarget - gate));
             if (f < 1e-3 && gate <= 0) {
-                out[i] = 0;
+                // Let the reflections ring out.
+                out[i] = (float) (distant(0) * OUT_GAIN * volume);
                 continue;
             }
             double spd = Math.min(f / F_MAX, 1);
@@ -130,8 +143,21 @@ final class VvvfSynth {
 
             double roll = rollLow.process(rollHigh.process(noise)) * ROLL_GAIN * ROLL * Math.pow(spd, 1.5);
             double fan = fanHigh.process(noise) * FAN_GAIN * FAN * Math.max(0, Math.min((f - 30) / 44, 1));
-            out[i] = (float) Math.max(-1, Math.min(1, (body + roll + fan) * OUT_GAIN * volume));
+            out[i] = (float) Math.max(-1, Math.min(1, distant(body + roll + fan) * OUT_GAIN * volume));
         }
+    }
+
+    /** Muffles and adds reflections (parallel feedback combs). */
+    private double distant(double x) {
+        double dry = distant.process(x);
+        double wet = 0;
+        for (int i = 0; i < echoes.length; i++) {
+            double delayed = echoes[i][echoAt[i]];
+            echoes[i][echoAt[i]] = dry + delayed * ECHO_FEEDBACK;
+            echoAt[i] = (echoAt[i] + 1) % echoes[i].length;
+            wet += delayed;
+        }
+        return dry + wet * ECHO_MIX / echoes.length;
     }
 
     /** The table's pulse count for the current fundamental, holding the current one near a switching point. */
