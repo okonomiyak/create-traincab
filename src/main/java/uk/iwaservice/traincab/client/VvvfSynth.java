@@ -56,6 +56,9 @@ final class VvvfSynth {
     private static final double SLOT_RATIO = 22;
     // Heard from a distance / through the floor: highs fade and the reflections off the surroundings blur it.
     private static final double DISTANT_CUTOFF = 1000;
+    /** Starting and stopping sound less muffled: the cutoff rises to this at standstill, back to normal by 25 Hz. */
+    private static final double LOW_SPEED_CUTOFF = 2200;
+    private static final double CLEAR_BELOW_F = 25;
     /** Reflection delays in samples (~48 / 77 / 109 / 146 ms) and their feedback; how much of them is mixed in. */
     private static final int[] ECHO_DELAYS = {2311, 3709, 5233, 7019};
     private static final double ECHO_FEEDBACK = 0.6;
@@ -105,6 +108,9 @@ final class VvvfSynth {
         double[] tableF = brake ? BRAKE_F : ACCEL_F;
         int[] tableN = brake ? BRAKE_N : ACCEL_N;
         double gateTarget = state == POWER || brake && f > REGEN_MIN_F ? 1 : 0;
+        // Once per chunk (100 ms) is smooth enough, and keeps tan() out of the per-sample loop.
+        distant.set(Biquad.lowpass(DISTANT_CUTOFF
+            + (LOW_SPEED_CUTOFF - DISTANT_CUTOFF) * Math.max(0, 1 - f / CLEAR_BELOW_F)));
         for (int i = 0; i < out.length; i++) {
             // Follow the game's 20 Hz updates smoothly (~50 ms), and fade the inverter in / out over 0.2 s.
             f += (target - f) * (1.0 / 2400);
@@ -272,7 +278,7 @@ final class VvvfSynth {
     /** Direct form I biquad at FS, designed by the bilinear transform like scipy's butter / iirpeak. */
     private static final class Biquad {
 
-        private final double b0, b1, b2, a1, a2;
+        private double b0, b1, b2, a1, a2;
         private double x1, x2, y1, y2;
 
         private Biquad(double b0, double b1, double b2, double a0, double a1, double a2) {
@@ -307,6 +313,15 @@ final class VvvfSynth {
             double w0 = 2 * Math.PI * fc / FS;
             double g = 1 / (1 + Math.tan(w0 / q / 2));
             return new Biquad(1 - g, 0, g - 1, 1, -2 * g * Math.cos(w0), 2 * g - 1);
+        }
+
+        /** Takes over {@code design}'s response, keeping this filter's state so the sound doesn't click. */
+        void set(Biquad design) {
+            b0 = design.b0;
+            b1 = design.b1;
+            b2 = design.b2;
+            a1 = design.a1;
+            a2 = design.a2;
         }
 
         double process(double x) {
