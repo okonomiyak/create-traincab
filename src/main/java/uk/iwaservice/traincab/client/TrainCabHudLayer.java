@@ -66,14 +66,16 @@ public final class TrainCabHudLayer {
     private static final int STOP_RESULT_TICKS = 100;
     private static final int LAMP_W = 30;
 
-    private static final int COLOR_PANEL_BG = 0xC0101014;
-    private static final int COLOR_BORDER = 0xFF3A3A3F;
+    private static final int COLOR_PANEL_BG = 0xC0222222;
+    private static final int COLOR_BORDER = 0xFF101014;
     private static final int COLOR_TEXT = 0xFFE8E8E8;
     private static final int COLOR_TEXT_DIM = 0xFF808088;
     private static final int COLOR_INACTIVE = 0xFF26262B;
     private static final int COLOR_GREEN = 0xFF3FBF5F;
     private static final int COLOR_RED = 0xFFE0483F;
     private static final int COLOR_ORANGE = 0xFFE0A030;
+    private static final int COLOR_SCREW = 0xFF0A0A0C;
+    private static final int COLOR_SCREW_RIM = 0xFF4A4A50;
 
     private TrainCabHudLayer() {
     }
@@ -142,8 +144,20 @@ public final class TrainCabHudLayer {
             g.guiHeight() - TrainCabConfig.offsetY - h * scale,
             0);
         pose.scale(scale, scale, 1);
+        drawPanel(g, w, h);
+    }
+
+    /** Panel background with its border and a screw hole in each corner. */
+    private static void drawPanel(GuiGraphics g, int w, int h) {
         drawRoundedRect(g, 0, 0, w, h, COLOR_BORDER);
         drawRoundedRect(g, 1, 1, w - 1, h - 1, COLOR_PANEL_BG);
+        for (int x : new int[] {2, w - 6}) {
+            for (int y : new int[] {2, h - 6}) {
+                // A 4×4 round hole, lit along its lower right edge like a countersunk rim.
+                drawRoundedRect(g, x, y, x + 4, y + 4, COLOR_SCREW_RIM);
+                drawRoundedRect(g, x, y, x + 3, y + 3, COLOR_SCREW);
+            }
+        }
     }
 
     private static void drawRoundedRect(GuiGraphics g, int x0, int y0, int x1, int y1, int color) {
@@ -342,8 +356,7 @@ public final class TrainCabHudLayer {
         PoseStack pose = g.pose();
         pose.pushPose();
         pose.translate((g.guiWidth() - w) / 2f, 8, 0);
-        drawRoundedRect(g, 0, 0, w, h, COLOR_BORDER);
-        drawRoundedRect(g, 1, 1, w - 1, h - 1, COLOR_PANEL_BG);
+        drawPanel(g, w, h);
         g.drawString(font, text, PAD, PAD, COLOR_TEXT, false);
         pose.popPose();
     }
