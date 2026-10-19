@@ -18,6 +18,7 @@ repositories {
     // Registrate, a transitive compile-time dependency of Create (embedded via jar-in-jar at runtime,
     // but still needed on the compile classpath since Create declares it as an `api` dependency)
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
+    mavenCentral()
 }
 
 base {
@@ -58,6 +59,10 @@ dependencies {
     // matches the "required" dependency declared in neoforge.mods.toml: NeoForge will refuse to
     // load this mod at all when Create is missing, instead of throwing a raw NoClassDefFoundError.
     implementation "com.simibubi.create:create-${minecraft_version}:${create_version}"
+
+    // MP3 decoder for uploaded departure bell sounds (LGPL-2.1), shipped inside our jar.
+    jarJar(implementation("javazoom:jlayer:1.0.1"))
+    additionalRuntimeClasspath "javazoom:jlayer:1.0.1"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

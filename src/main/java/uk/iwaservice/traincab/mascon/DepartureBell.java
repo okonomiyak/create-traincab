@@ -10,6 +10,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.state.BlockState;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.block.DepartureBellBlock;
+import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
+import uk.iwaservice.traincab.sound.CustomSounds;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -20,6 +22,7 @@ import java.util.UUID;
 /**
  * 発車ベル / 発車メロディ. The conductor of a train stopped at a station rings the departure bell block nearest to
  * them; the doors cannot be closed until it has finished (or the conductor stops it with the same key).
+ * It plays the bell's uploaded sound once (see CustomSounds), or else the built-in bell / melody.
  */
 final class DepartureBell {
 
@@ -42,6 +45,9 @@ final class DepartureBell {
         ServerLevel level;
         BlockPos pos;
         boolean melody;
+        /** Uploaded sound playing on the clients, and its length in ticks. */
+        String sound;
+        int soundTicks;
         int tick;
     }
 
@@ -53,7 +59,11 @@ final class DepartureBell {
 
     /** The conductor's key: start ringing the nearest departure bell, or stop it if it is already ringing. */
     static void toggle(ServerPlayer conductor, Train train) {
-        if (RINGING.remove(train.id) != null) {
+        Ringing stopped = RINGING.remove(train.id);
+        if (stopped != null) {
+            if (stopped.sound != null) {
+                CustomSounds.play(stopped.level, stopped.pos, "");
+            }
             return;
         }
         if (train.getCurrentStation() == null) {
@@ -72,6 +82,12 @@ final class DepartureBell {
         ringing.level = level;
         ringing.pos = pos.get();
         ringing.melody = state.getValue(DepartureBellBlock.MELODY);
+        if (level.getBlockEntity(ringing.pos) instanceof DepartureBellBlockEntity bell && bell.hasSound()
+            && CustomSounds.exists(level.getServer(), bell.soundHash())) {
+            ringing.sound = bell.soundHash();
+            ringing.soundTicks = CustomSounds.ticks(bell.soundBytes());
+            CustomSounds.play(level, ringing.pos, ringing.sound);
+        }
         RINGING.put(train.id, ringing);
     }
 
@@ -82,7 +98,9 @@ final class DepartureBell {
     static void tick() {
         for (Iterator<Ringing> it = RINGING.values().iterator(); it.hasNext(); ) {
             Ringing r = it.next();
-            if (r.melody) {
+            if (r.sound != null) {
+                // Playing on the clients; just wait for it to end.
+            } else if (r.melody) {
                 int t = r.tick % MELODY_LENGTH;
                 for (int[] note : MELODY) {
                     if (note[0] == t) {
@@ -95,8 +113,13 @@ final class DepartureBell {
                 play(r, SoundEvents.NOTE_BLOCK_BELL.value(), VOLUME, 1.5f);
             }
             r.tick++;
-            if (r.tick >= (r.melody ? MELODY_LENGTH * MELODY_REPEATS : BELL_TICKS)
-                || !r.level.getBlockState(r.pos).is(TrainCabItems.DEPARTURE_BELL.get())) {
+            if (!r.level.getBlockState(r.pos).is(TrainCabItems.DEPARTURE_BELL.get())) {
+                if (r.sound != null) {
+                    CustomSounds.play(r.level, r.pos, "");
+                }
+                it.remove();
+            } else if (r.tick >= (r.sound != null ? r.soundTicks
+                : r.melody ? MELODY_LENGTH * MELODY_REPEATS : BELL_TICKS)) {
                 it.remove();
             }
         }

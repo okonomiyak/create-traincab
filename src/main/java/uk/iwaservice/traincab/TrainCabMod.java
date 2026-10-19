@@ -11,6 +11,10 @@ import uk.iwaservice.traincab.mascon.CrewStatus;
 import uk.iwaservice.traincab.mascon.MasconPayload;
 import uk.iwaservice.traincab.mascon.StationInfo;
 import uk.iwaservice.traincab.mascon.StopResult;
+import uk.iwaservice.traincab.sound.BellMode;
+import uk.iwaservice.traincab.sound.SoundChunk;
+import uk.iwaservice.traincab.sound.SoundPlay;
+import uk.iwaservice.traincab.sound.SoundRequest;
 
 @Mod(TrainCabMod.MODID)
 public class TrainCabMod {
@@ -21,12 +25,16 @@ public class TrainCabMod {
         modContainer.registerConfig(ModConfig.Type.CLIENT, TrainCabConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.SERVER, TrainCabServerConfig.SPEC);
         TrainCabItems.register(modEventBus);
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("6")
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("7")
             .playToServer(MasconPayload.TYPE, MasconPayload.STREAM_CODEC, MasconPayload::handle)
             .playToServer(ConductorAction.TYPE, ConductorAction.STREAM_CODEC, ConductorAction::handle)
             .playToClient(StationInfo.TYPE, StationInfo.STREAM_CODEC, StationInfo::handle)
             .playToClient(CrewStatus.TYPE, CrewStatus.STREAM_CODEC, CrewStatus::handle)
             .playToClient(Announcement.TYPE, Announcement.STREAM_CODEC, Announcement::handle)
-            .playToClient(StopResult.TYPE, StopResult.STREAM_CODEC, StopResult::handle));
+            .playToClient(StopResult.TYPE, StopResult.STREAM_CODEC, StopResult::handle)
+            .playBidirectional(SoundChunk.TYPE, SoundChunk.STREAM_CODEC, SoundChunk::handle)
+            .playToServer(SoundRequest.TYPE, SoundRequest.STREAM_CODEC, SoundRequest::handle)
+            .playToServer(BellMode.TYPE, BellMode.STREAM_CODEC, BellMode::handle)
+            .playToClient(SoundPlay.TYPE, SoundPlay.STREAM_CODEC, SoundPlay::handle));
     }
 }
