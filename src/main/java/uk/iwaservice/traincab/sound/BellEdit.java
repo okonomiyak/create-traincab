@@ -9,18 +9,21 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 
 /**
  * Client → server: change the departure bell at {@code pos}. {@code op} is MELODY / BELL (back to that built-in
- * sound), MUSIC_HORN (back to the built-in MH), or the index of a 車内放送 to remove.
+ * sound), MUSIC_HORN (back to the built-in MH), TWO_WAY (switch a 高度駅 between 一方向 and 双方向), or the index
+ * of a 車内放送 to remove.
  */
 public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
 
     public static final int MELODY = -1;
     public static final int BELL = -2;
     public static final int MUSIC_HORN = -3;
+    public static final int TWO_WAY = -4;
 
     public static final Type<BellEdit> TYPE =
         new Type<>(ResourceLocation.fromNamespaceAndPath(TrainCabMod.MODID, "bell_edit"));
@@ -43,6 +46,10 @@ public record BellEdit(BlockPos pos, int op) implements CustomPacketPayload {
             }
             if (edit.op == MELODY || edit.op == BELL) {
                 be.setBuiltin(edit.op == MELODY);
+            } else if (edit.op == TWO_WAY) {
+                if (be instanceof AdvancedStationBlockEntity station) {
+                    station.toggleTwoWay();
+                }
             } else if (!(be instanceof DepartureBellBlockEntity bell)) {
                 return;
             } else if (edit.op == MUSIC_HORN) {

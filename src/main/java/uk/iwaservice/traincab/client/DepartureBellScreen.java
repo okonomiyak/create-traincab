@@ -13,6 +13,7 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.AdvancedStationBlockEntity;
 import uk.iwaservice.traincab.block.BellSound;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
@@ -74,6 +75,11 @@ public class DepartureBellScreen extends Screen {
             }
         } else {
             tab = SoundChunk.BELL;
+            if (bell() instanceof AdvancedStationBlockEntity station) {
+                addRenderableWidget(Button.builder(
+                    Component.literal("停車する向き: " + (station.twoWay() ? "双方向" : "一方向(矢印の向き)")),
+                    b -> PacketDistributor.sendToServer(new BellEdit(pos, BellEdit.TWO_WAY))).bounds(x, y, 200, 20).build());
+            }
         }
         if (tab == SoundChunk.ANNOUNCEMENT) {
             initAnnouncements(x, y + 50, trainBell());
@@ -148,6 +154,7 @@ public class DepartureBellScreen extends Screen {
         BellSound bell = bell();
         DepartureBellBlockEntity trainBell = trainBell();
         return bell == null ? "" : bell.soundHash() + bell.melody()
+            + (bell instanceof AdvancedStationBlockEntity station && station.twoWay())
             + (trainBell == null ? "" : trainBell.announcements() + "" + trainBell.musicHorn());
     }
 

@@ -39,6 +39,8 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     private boolean melody = true;
     @Nullable
     private UUID signalId;
+    /** 双方向: trains may stop here travelling either way (see GlobalStationMixin). */
+    private boolean twoWay;
 
     public AdvancedStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -57,6 +59,10 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         }
         SignalBoundary signal = departureSignal();
         GlobalStation station = getStation();
+        // The station on the track is recreated whenever the track changes, so keep handing it the setting.
+        if (station instanceof TwoWayStation twoWayStation && twoWayStation.traincab$twoWay() != twoWay) {
+            twoWayStation.traincab$setTwoWay(twoWay);
+        }
         Train train = station == null ? null : station.getPresentTrain();
         // The lamp turns green once the block ahead is free and the melody has finished.
         boolean clear = (signal == null || signal.cachedStates.getFirst() != SignalState.RED)
@@ -141,6 +147,15 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         }
     }
 
+    public boolean twoWay() {
+        return twoWay;
+    }
+
+    public void toggleTwoWay() {
+        twoWay = !twoWay;
+        notifyUpdate();
+    }
+
     @Override
     public boolean hasSound() {
         return !soundHash.isEmpty();
@@ -187,6 +202,7 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
     protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.write(tag, registries, clientPacket);
         tag.putBoolean("Melody", melody);
+        tag.putBoolean("TwoWay", twoWay);
         if (signalId != null && !clientPacket) {
             tag.putUUID("DepartureSignal", signalId);
         }
@@ -204,6 +220,7 @@ public class AdvancedStationBlockEntity extends StationBlockEntity implements Be
         soundHash = tag.getString("SoundHash");
         soundName = tag.getString("SoundName");
         soundBytes = tag.getInt("SoundBytes");
+        twoWay = tag.getBoolean("TwoWay");
         if (!clientPacket) {
             signalId = tag.hasUUID("DepartureSignal") ? tag.getUUID("DepartureSignal") : null;
         }
