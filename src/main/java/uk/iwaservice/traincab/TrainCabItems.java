@@ -6,6 +6,8 @@ import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import uk.iwaservice.traincab.block.AdvancedCabBlock;
 import uk.iwaservice.traincab.block.AdvancedCabInteraction;
+import uk.iwaservice.traincab.block.InverterBlock;
+import uk.iwaservice.traincab.block.InverterInteraction;
 import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
 import net.minecraft.world.item.BlockItem;
@@ -57,7 +59,7 @@ public final class TrainCabItems {
         ITEMS.register("speaker_linker", () -> new SpeakerLinkerItem(new Item.Properties().stacksTo(1)));
 
     /** VVVFインバーター: built into a train, it makes the train sound like one (see VvvfSounds). */
-    public static final RegistryObject<Block> INVERTER = BLOCKS.register("inverter", () -> new Block(
+    public static final RegistryObject<InverterBlock> INVERTER = BLOCKS.register("inverter", () -> new InverterBlock(
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL)));
     public static final RegistryObject<Item> INVERTER_ITEM =
         ITEMS.register("inverter", () -> new BlockItem(INVERTER.get(), new Item.Properties()));
@@ -125,6 +127,7 @@ public final class TrainCabItems {
             // sneak + right-click for the ワンマン switch.
             MovingInteractionBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new AdvancedCabInteraction());
             MovementBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new AdvancedCabMovementBehaviour());
+            MovingInteractionBehaviour.REGISTRY.register(INVERTER.get(), new InverterInteraction());
             // Display links can read a 高度駅 like Create's station.
             DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.STATION_SUMMARY.get());
             DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.TRAIN_STATUS.get());

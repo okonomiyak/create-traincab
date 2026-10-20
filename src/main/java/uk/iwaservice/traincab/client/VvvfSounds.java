@@ -23,6 +23,7 @@ import org.lwjgl.BufferUtils;
 import uk.iwaservice.traincab.TrainCabConfig;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabMod;
+import uk.iwaservice.traincab.block.InverterBlock;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -36,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * VVVF traction sound for the trains near the player that carry a VVVFインバーター, coming from the nearest carriage
- * with one.
+ * with one, in the sound picked on that inverter.
  * Clients only see where carriages are, not the notch, so 力行 / 惰行 / 回生 comes from the acceleration
  * (except for the train this player drives with the mascon, which uses the notch).
  */
@@ -67,8 +68,13 @@ public final class VvvfSounds {
 
     // Client thread only.
     private static final Map<UUID, TrainSound> SOUNDS = new HashMap<>();
-    /** A carriage's blocks are fixed once assembled, so scan each contraption for an inverter once. */
-    private static final Map<Contraption, Boolean> HAS_INVERTER = new WeakHashMap<>();
+    /**
+     * Each contraption's inverter sound (-1 for none) and the client tick to look again: the blocks are fixed once
+     * assembled, but the sound can be switched on the train.
+     */
+    private static final Map<Contraption, int[]> INVERTER_SOUND = new WeakHashMap<>();
+    private static final int RESCAN_TICKS = 20;
+    private static int clientTicks;
 
     private VvvfSounds() {
     }
@@ -76,11 +82,12 @@ public final class VvvfSounds {
     static void tick() {
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
+        clientTicks++;
         Map<UUID, CarriageContraptionEntity> nearest = new HashMap<>();
         if (mc.level != null && player != null && TrainCabConfig.vvvfSound) {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof CarriageContraptionEntity cce && cce.getCarriage() != null
-                    && cce.distanceToSqr(player) < RANGE * RANGE && hasInverter(cce)) {
+                    && cce.distanceToSqr(player) < RANGE * RANGE && inverterSound(cce) >= 0) {
                     nearest.merge(cce.getCarriage().train.id, cce,
                         (a, b) -> a.distanceToSqr(player) <= b.distanceToSqr(player) ? a : b);
                 }
@@ -101,9 +108,21 @@ public final class VvvfSounds {
         }
     }
 
-    private static boolean hasInverter(CarriageContraptionEntity cce) {
-        return cce.getContraption() != null && HAS_INVERTER.computeIfAbsent(cce.getContraption(),
-            c -> c.getBlocks().values().stream().anyMatch(info -> info.state().is(TrainCabItems.INVERTER.get())));
+    /** The sound of the first inverter on this carriage, or -1 without one. */
+    private static int inverterSound(CarriageContraptionEntity cce) {
+        Contraption contraption = cce.getContraption();
+        if (contraption == null) {
+            return -1;
+        }
+        int[] cached = INVERTER_SOUND.get(contraption);
+        if (cached == null || clientTicks >= cached[1]) {
+            int sound = contraption.getBlocks().values().stream()
+                .filter(info -> info.state().is(TrainCabItems.INVERTER.get()))
+                .mapToInt(info -> info.state().getValue(InverterBlock.SOUND)).findFirst().orElse(-1);
+            cached = new int[] {sound, clientTicks + RESCAN_TICKS};
+            INVERTER_SOUND.put(contraption, cached);
+        }
+        return cached[0];
     }
 
     private static final class TrainSound extends AbstractSoundInstance implements TickableSoundInstance {
@@ -153,6 +172,7 @@ public final class VvvfSounds {
             }
             synth.state = state;
             synth.volume = TrainCabConfig.vvvfVolume;
+            synth.profile = VvvfSynth.PROFILES[Math.min(inverterSound(cce), VvvfSynth.PROFILES.length - 1)];
             synth.target = VvvfSynth.F_MAX * speed / AllConfigs.server().trains.trainTopSpeed.getF();
 
             // Out of sources, or the stream ran dry in a lag spike: try again every second.
