@@ -4,8 +4,8 @@ import com.simibubi.create.AllDisplaySources;
 import com.simibubi.create.api.behaviour.display.DisplaySource;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
-import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
-import com.simibubi.create.content.contraptions.actors.trainControls.ControlsInteractionBehaviour;
+import uk.iwaservice.traincab.block.AdvancedCabBlock;
+import uk.iwaservice.traincab.block.AdvancedCabInteraction;
 import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
 import net.minecraft.core.registries.Registries;
@@ -61,8 +61,11 @@ public final class TrainCabItems {
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL));
     public static final DeferredItem<BlockItem> INVERTER_ITEM = ITEMS.registerSimpleBlockItem(INVERTER);
 
-    /** 高度運転台: Create's train controls (drives the same way) plus the brake cylinder pressure gauge on the HUD. */
-    public static final DeferredBlock<ControlsBlock> ADVANCED_CAB = BLOCKS.register("advanced_cab", () -> new ControlsBlock(
+    /**
+     * 高度運転台: Create's train controls (drives the same way) plus the brake cylinder pressure gauge on the HUD and
+     * a ワンマン switch.
+     */
+    public static final DeferredBlock<AdvancedCabBlock> ADVANCED_CAB = BLOCKS.register("advanced_cab", () -> new AdvancedCabBlock(
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL).noOcclusion()));
     public static final DeferredItem<BlockItem> ADVANCED_CAB_ITEM = ITEMS.registerSimpleBlockItem(ADVANCED_CAB);
 
@@ -115,8 +118,9 @@ public final class TrainCabItems {
         TABS.register(modEventBus);
         modEventBus.addListener((FMLCommonSetupEvent event) -> event.enqueueWork(() -> {
             MovingInteractionBehaviour.REGISTRY.register(CONDUCTOR_PANEL.get(), new ConductorPanelInteraction());
-            // Create's controls behaviours: right-click to drive (its levers are part of the model, so not drawn).
-            MovingInteractionBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new ControlsInteractionBehaviour());
+            // Create's controls behaviours: right-click to drive (its levers are part of the model, so not drawn),
+            // sneak + right-click for the ワンマン switch.
+            MovingInteractionBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new AdvancedCabInteraction());
             MovementBehaviour.REGISTRY.register(ADVANCED_CAB.get(), new AdvancedCabMovementBehaviour());
             // Display links can read a 高度駅 like Create's station.
             DisplaySource.BY_BLOCK.add(ADVANCED_STATION.get(), AllDisplaySources.STATION_SUMMARY.get());

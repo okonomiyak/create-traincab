@@ -29,6 +29,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import uk.iwaservice.traincab.TrainCabMod;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabServerConfig;
+import uk.iwaservice.traincab.block.AdvancedCabBlock;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity;
 import uk.iwaservice.traincab.block.DepartureBellBlockEntity.Clip;
 import uk.iwaservice.traincab.sound.CustomSounds;
@@ -51,7 +52,7 @@ import java.util.UUID;
  * emergency brake (車掌弁), which holds the train in EB until the conductor releases it again or the
  * driver moves the handle to EB. Trains
  * without a conductor run one-man: Create opens their doors automatically, unless the driver takes the doors
- * over with the door key (ワンマン扱い, until they leave the controls).
+ * over with the door key or the train has a 高度運転台 set to ワンマン (ワンマン扱い, until they leave the controls).
  */
 @EventBusSubscriber(modid = TrainCabMod.MODID)
 public final class Conductor {
@@ -89,6 +90,9 @@ public final class Conductor {
 
     /** Length (ticks) of the 戸閉 chime played from every carriage while the doors close. */
     private static final int DOOR_CHIME_LENGTH = 14;
+
+    /** How often (ticks) a driven train without a crew is checked for a 高度運転台 set to ワンマン. */
+    private static final int ONE_MAN_CHECK_TICKS = 20;
 
     /** Players this close to a carriage (standing on or in it) count as on board for announcements. */
     private static final double ON_BOARD_RANGE = 0.5;
@@ -276,6 +280,39 @@ public final class Conductor {
         }
     }
 
+    /** Takes the doors over from Create for the driver (ワンマン扱い). Create has already opened them at a station. */
+    private static Crew startOneMan(Train train, ServerPlayer driver) {
+        Crew crew = new Crew();
+        crew.conductor = driver.getUUID();
+        crew.oneMan = true;
+        crew.doorsOpen = crew.wasAtStation = train.getCurrentStation() != null;
+        CREWS.put(train.id, crew);
+        return crew;
+    }
+
+    /** Called by the mascon every tick: a train with a 高度運転台 set to ワンマン hands its driver the doors. */
+    static void driving(Train train, ServerPlayer driver) {
+        if (!CREWS.containsKey(train.id) && driver.server.getTickCount() % ONE_MAN_CHECK_TICKS == 0
+            && hasOneManCab(train)) {
+            startOneMan(train, driver);
+        }
+    }
+
+    private static boolean hasOneManCab(Train train) {
+        for (Carriage carriage : train.carriages) {
+            CarriageContraptionEntity cce = carriage.anyAvailableEntity();
+            if (cce == null) {
+                continue;
+            }
+            for (StructureBlockInfo info : cce.getContraption().getBlocks().values()) {
+                if (info.state().is(TrainCabItems.ADVANCED_CAB.get()) && info.state().getValue(AdvancedCabBlock.ONE_MAN)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** Saved tags of the departure bells built into the train. */
     private static List<CompoundTag> bellsOf(Train train) {
         List<CompoundTag> bells = new ArrayList<>();
@@ -333,11 +370,7 @@ public final class Conductor {
                 if (crew == null && player.equals(Mascon.driverOf(train))) {
                     // ワンマン: the driver's first door key takes the doors over from Create until they leave the
                     // controls. At a station Create has already opened them, so that first press closes them.
-                    crew = new Crew();
-                    crew.conductor = player.getUUID();
-                    crew.oneMan = true;
-                    crew.doorsOpen = crew.wasAtStation = train.getCurrentStation() != null;
-                    CREWS.put(train.id, crew);
+                    crew = startOneMan(train, player);
                     isConductor = true;
                 }
                 if (!isConductor) {

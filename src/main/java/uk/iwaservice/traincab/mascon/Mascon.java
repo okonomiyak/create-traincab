@@ -167,6 +167,7 @@ public final class Mascon {
         }
         train.manualTick = false;
         DrivenSchedule.drive(train);
+        Conductor.driving(train, s.driver);
         s.wheel = StationInfo.GRIP;
 
         // Never move with the doors open (the conductor can open them anywhere once stopped).
