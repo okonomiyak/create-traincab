@@ -3,10 +3,11 @@ package uk.iwaservice.traincab.client;
 import java.util.SplittableRandom;
 
 /**
- * Real-time GTO-VVVF traction sound: PWM from a sine reference and a triangle carrier (asynchronous
- * 365 Hz at low speed, then synchronous 27P→1P), turned into motor current, plus torque ripple, gear whine, rolling
- * and fan noise, through the motor body's resonances. Ported from a reference script; the modulation index, gains and
- * resonances are by ear, the switching frequencies read off spectrograms.
+ * Real-time VVVF traction sound: PWM from a sine reference and a triangle carrier (asynchronous at low speed, then
+ * synchronous pulse modes), turned into motor current, plus torque ripple, gear whine, rolling and fan noise,
+ * through the motor body's resonances. The switching pattern is a {@link Profile}: GTO (ported from a
+ * reference script, switching frequencies read off spectrograms) and others by ear; the modulation index, gains and
+ * resonances are by ear too.
  *
  * <p>The game thread sets {@link #target} and {@link #state}; the sound thread calls {@link #render}.
  */
@@ -20,22 +21,49 @@ final class VvvfSynth {
     static final double F_MAX = 74;
 
     private static final int OS = 4;
-    private static final double ASYNC_CARRIER = 365;
-    /** Level of the asynchronous carrier at standstill (by ear). */
-    private static final double ASYNC_LEVEL = 0.35;
-    /** Depth of the async carrier's 2f swell at standstill (by ear). */
-    private static final double ASYNC_SWELL = 0.6;
-    /** In 力行 / 回生 the pulse count switches up at these fundamentals (Hz); 0 = asynchronous. */
-    private static final double[] ACCEL_F = {0, 9, 16.4, 29.6, 41.3, 49.0, 52.4};
-    private static final int[] ACCEL_N = {0, 27, 15, 9, 5, 3, 1};
-    private static final double[] ACCEL_M_F = {0, 9, 16.4, 29.6, 41.3, 49.0};
-    private static final double[] ACCEL_M = {0.08, 0.5, 0.6, 0.75, 0.9, 1.0};
-    private static final double[] BRAKE_F = {0, 33, 43, 59, 67};
-    private static final int[] BRAKE_N = {15, 9, 5, 3, 1};
-    private static final double[] BRAKE_M_F = {12.3, 33, 43, 59, 67};
-    private static final double[] BRAKE_M = {0.6, 0.7, 0.85, 0.95, 1.0};
-    /** 回生 fades out below this; the air brake does the rest. */
-    private static final double REGEN_MIN_F = 11;
+
+    /**
+     * One inverter's switching pattern. In 力行 (accel) / 回生 (brake) the pulse count switches up at the F
+     * fundamentals (Hz) to the N counts, 0 = asynchronous; the modulation index follows M over MF. 回生 fades out
+     * below regenMinF (the air brake does the rest). The asynchronous carrier follows carrierHz over carrierF,
+     * in steps or interpolated, wandering by ±jitter of itself (random modulation). At standstill it is
+     * asyncLevel loud (full by the first synchronous mode) and swells by asyncSwell with the rotor's poles (2f).
+     */
+    record Profile(double[] accelF, int[] accelN, double[] accelMF, double[] accelM,
+                   double[] brakeF, int[] brakeN, double[] brakeMF, double[] brakeM, double regenMinF,
+                   double[] carrierF, double[] carrierHz, boolean stepped, double jitter,
+                   double asyncLevel, double asyncSwell) {
+    }
+
+    /** Indexed by the inverter block's {@code sound} (InverterBlock.SOUNDS). */
+    static final Profile[] PROFILES = {
+        // GTO: asynchronous 365 Hz, then 27P→1P; 回生 from 15P.
+        new Profile(new double[] {0, 9, 16.4, 29.6, 41.3, 49.0, 52.4}, new int[] {0, 27, 15, 9, 5, 3, 1},
+            new double[] {0, 9, 16.4, 29.6, 41.3, 49.0}, new double[] {0.08, 0.5, 0.6, 0.75, 0.9, 1.0},
+            new double[] {0, 33, 43, 59, 67}, new int[] {15, 9, 5, 3, 1},
+            new double[] {12.3, 33, 43, 59, 67}, new double[] {0.6, 0.7, 0.85, 0.95, 1.0}, 11,
+            new double[] {0}, new double[] {365}, false, 0, 0.35, 0.6),
+        // GTO・音階: the asynchronous carrier climbs the F major scale
+        // ファ ソ ラ シ♭ ド レ ミ ファ, then ソ, and walks back down when stopping.
+        new Profile(new double[] {0, 12, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
+            new double[] {0, 12, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0},
+            new double[] {0, 12, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
+            new double[] {0, 12, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0}, 2.5,
+            new double[] {0, 1.3, 2.6, 3.9, 5.2, 6.5, 7.8, 9.1, 10.4},
+            new double[] {349.2, 392.0, 440.0, 466.2, 523.3, 587.3, 659.3, 698.5, 784.0}, true, 0, 1, 0),
+        // IGBT: an asynchronous carrier rising 750→1050 Hz (the ヒューン), then wide 3P and 1P.
+        new Profile(new double[] {0, 40, 52}, new int[] {0, 3, 1},
+            new double[] {0, 40, 52}, new double[] {0.05, 0.85, 1.0},
+            new double[] {0, 44, 56}, new int[] {0, 3, 1},
+            new double[] {0, 44, 56}, new double[] {0.05, 0.85, 1.0}, 4,
+            new double[] {0, 20}, new double[] {750, 1050}, false, 0, 0.7, 0.3),
+        // SiC: a high asynchronous carrier with random modulation (a hiss rather than a tone), 1P at speed.
+        new Profile(new double[] {0, 56}, new int[] {0, 1},
+            new double[] {0, 56}, new double[] {0.05, 1.0},
+            new double[] {0, 60}, new int[] {0, 1},
+            new double[] {0, 60}, new double[] {0.05, 1.0}, 3,
+            new double[] {0}, new double[] {1200}, false, 0.25, 0.6, 0.2),
+    };
     /** How far past a switching point the fundamental has to go before switching back. */
     private static final double HYSTERESIS = 0.5;
     /** (centre Hz, Q, gain) of the motor body's resonances. */
@@ -69,12 +97,15 @@ final class VvvfSynth {
     volatile double target;
     volatile int state = COAST;
     volatile double volume = 1;
+    volatile Profile profile = PROFILES[0];
 
     private double f;
     private double gate;
     private int pulses;
     private double phase;
     private double carrierPhase;
+    /** The random modulation's current share of the carrier, picked anew every carrier period. */
+    private double jitterFactor = 1;
     private double gearPhase;
     private double slotPhase;
     private final SplittableRandom random = new SplittableRandom();
@@ -104,10 +135,11 @@ final class VvvfSynth {
     void render(float[] out) {
         double target = Math.max(this.target, 0);
         int state = this.state;
+        Profile p = profile;
         boolean brake = state == BRAKE;
-        double[] tableF = brake ? BRAKE_F : ACCEL_F;
-        int[] tableN = brake ? BRAKE_N : ACCEL_N;
-        double gateTarget = state == POWER || brake && f > REGEN_MIN_F ? 1 : 0;
+        double[] tableF = brake ? p.brakeF() : p.accelF();
+        int[] tableN = brake ? p.brakeN() : p.accelN();
+        double gateTarget = state == POWER || brake && f > p.regenMinF() ? 1 : 0;
         // Once per chunk (100 ms) is smooth enough, and keeps tan() out of the per-sample loop.
         distant.set(Biquad.lowpass(DISTANT_CUTOFF
             + (LOW_SPEED_CUTOFF - DISTANT_CUTOFF) * Math.max(0, 1 - f / CLEAR_BELOW_F)));
@@ -127,20 +159,26 @@ final class VvvfSynth {
             double pwm = 0;
             if (gate > 0) {
                 int n = pulses(tableF, tableN);
-                double m = brake ? interp(BRAKE_M_F, BRAKE_M, f) : interp(ACCEL_M_F, ACCEL_M, f);
+                double m = brake ? interp(p.brakeMF(), p.brakeM(), f) : interp(p.accelMF(), p.accelM(), f);
+                double carrier = (p.stepped() ? step(p.carrierF(), p.carrierHz(), f) : interp(p.carrierF(), p.carrierHz(), f))
+                    * jitterFactor;
                 for (int k = 0; k < OS; k++) {
                     phase = frac(phase + f / (FS * OS));
-                    carrierPhase = n > 0 ? frac(n * phase) : frac(carrierPhase + ASYNC_CARRIER / (FS * OS));
+                    double last = carrierPhase;
+                    carrierPhase = n > 0 ? frac(n * phase) : frac(carrierPhase + carrier / (FS * OS));
+                    if (n == 0 && p.jitter() > 0 && carrierPhase < last) {
+                        jitterFactor = 1 + random.nextDouble(-p.jitter(), p.jitter());
+                    }
                     double s = Math.sin(2 * Math.PI * phase);
                     double tri = 2 * Math.abs(2 * carrierPhase - 1) - 1;
                     pwm += n == 1 ? (s >= 0 ? 1 : -1) : m * s > tri ? 1 : -1;
                 }
                 pwm /= OS;
                 if (n == 0) {
-                    // The bare 365 Hz carrier is shrill: start quiet and reach full level by the first sync mode.
+                    // A bare carrier is shrill: start quieter and reach full level by the first sync mode.
                     // It also swells with the rotor's poles going round (2f), which makes it sound like a motor.
-                    double low = 1 - Math.min(f / ACCEL_F[1], 1);
-                    pwm *= (1 - (1 - ASYNC_LEVEL) * low) * (1 + ASYNC_SWELL * low * Math.sin(4 * Math.PI * phase));
+                    double low = 1 - Math.min(f / p.accelF()[1], 1);
+                    pwm *= (1 - (1 - p.asyncLevel()) * low) * (1 + p.asyncSwell() * low * Math.sin(4 * Math.PI * phase));
                 }
             } else {
                 phase = frac(phase + f / FS);
@@ -197,6 +235,15 @@ final class VvvfSynth {
             i--;
         }
         return tableN[i];
+    }
+
+    /** ys at the last of xs that x has reached. */
+    private static double step(double[] xs, double[] ys, double x) {
+        int i = xs.length - 1;
+        while (i > 0 && x < xs[i]) {
+            i--;
+        }
+        return ys[i];
     }
 
     private static double interp(double[] xs, double[] ys, double x) {
