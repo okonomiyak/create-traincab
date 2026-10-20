@@ -10,6 +10,8 @@ import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
 import uk.iwaservice.traincab.sound.VvvfEdit;
+import uk.iwaservice.traincab.sound.VvvfLibraryAction;
+import uk.iwaservice.traincab.sound.VvvfLibraryList;
 import uk.iwaservice.traincab.sound.VvvfSync;
 
 public final class TrainCabNetwork {
@@ -91,6 +93,16 @@ public final class TrainCabNetwork {
             .encoder(VvvfSync::encode)
             .decoder(VvvfSync::decode)
             .consumerMainThread(VvvfSync::handle)
+            .add();
+        CHANNEL.messageBuilder(VvvfLibraryAction.class, 13, NetworkDirection.PLAY_TO_SERVER)
+            .encoder(VvvfLibraryAction::encode)
+            .decoder(VvvfLibraryAction::decode)
+            .consumerMainThread(VvvfLibraryAction::handle)
+            .add();
+        CHANNEL.messageBuilder(VvvfLibraryList.class, 14, NetworkDirection.PLAY_TO_CLIENT)
+            .encoder(VvvfLibraryList::encode)
+            .decoder(VvvfLibraryList::decode)
+            .consumerMainThread(VvvfLibraryList::handle)
             .add();
     }
 }
