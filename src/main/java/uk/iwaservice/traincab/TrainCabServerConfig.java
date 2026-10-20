@@ -49,13 +49,13 @@ public class TrainCabServerConfig {
         .define("scheduleWhileDriving", true);
 
     private static final ModConfigSpec.DoubleValue GRADE_EFFECT = BUILDER
-        .comment("How hard gradients pull a mascon-driven train downhill: at 1.0 a 45° slope pulls with about 0.7 of",
-            "P5's force. 0 turns gradients off.")
+        .comment("How hard gradients pull a train downhill: at 1.0 a 45° slope pulls a mascon-driven train with about",
+            "0.7 of P5's force. Automatic trains are only held back uphill. 0 turns gradients off.")
         .defineInRange("gradeEffect", 1.0, 0.0, 4.0);
 
     private static final ModConfigSpec.BooleanValue WHEEL_SLIP = BUILDER
-        .comment("In rain or snow, too much power spins a mascon-driven train's wheels (空転) and too much brake",
-            "locks them (滑走), and then they grip less.")
+        .comment("In rain or snow, too much power spins a train's wheels (空転) and too much brake locks them (滑走),",
+            "and then they grip less. Automatic trains spin when accelerating but never slide.")
         .define("wheelSlip", true);
 
     static final ModConfigSpec SPEC = BUILDER.build();
