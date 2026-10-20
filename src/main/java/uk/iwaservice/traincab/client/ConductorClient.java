@@ -89,13 +89,11 @@ public final class ConductorClient {
             send(Conductor.DEPARTURE_BELL);
         }
 
-        if (driving || !isConductor()) {
-            return;
-        }
-        if (doors) {
+        // The server only accepts a driver's door key without a conductor (ワンマン扱い).
+        if (doors && (driving || isConductor())) {
             send(Conductor.TOGGLE_DOORS);
         }
-        if (emergencyPressed) {
+        if (emergencyPressed && !driving && isConductor()) {
             send(Conductor.EMERGENCY);
         }
     }

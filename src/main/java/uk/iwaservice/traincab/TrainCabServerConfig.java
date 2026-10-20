@@ -48,6 +48,16 @@ public class TrainCabServerConfig {
             "arriving, setting off moves it on), so departure boards keep showing it. Off: Create pauses the schedule.")
         .define("scheduleWhileDriving", true);
 
+    private static final ForgeConfigSpec.DoubleValue GRADE_EFFECT = BUILDER
+        .comment("How hard gradients pull a mascon-driven train downhill: at 1.0 a 45° slope pulls with about 0.7 of",
+            "P5's force. 0 turns gradients off.")
+        .defineInRange("gradeEffect", 1.0, 0.0, 4.0);
+
+    private static final ForgeConfigSpec.BooleanValue WHEEL_SLIP = BUILDER
+        .comment("In rain or snow, too much power spins a mascon-driven train's wheels (空転) and too much brake",
+            "locks them (滑走), and then they grip less.")
+        .define("wheelSlip", true);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static double masconRate = 0.5;
@@ -59,6 +69,8 @@ public class TrainCabServerConfig {
     public static int maxSoundSeconds = 60;
     public static double approachDistance = 150.0;
     public static boolean scheduleWhileDriving = true;
+    public static double gradeEffect = 1.0;
+    public static boolean wheelSlip = true;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -74,5 +86,7 @@ public class TrainCabServerConfig {
         maxSoundSeconds = MAX_SOUND_SECONDS.get();
         approachDistance = APPROACH_DISTANCE.get();
         scheduleWhileDriving = SCHEDULE_WHILE_DRIVING.get();
+        gradeEffect = GRADE_EFFECT.get();
+        wheelSlip = WHEEL_SLIP.get();
     }
 }

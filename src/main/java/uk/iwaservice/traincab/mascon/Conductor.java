@@ -50,7 +50,8 @@ import java.util.UUID;
  * driver cannot depart until the conductor has closed them again (戸閉). The conductor can also pull the
  * emergency brake (車掌弁), which holds the train in EB until the conductor releases it again or the
  * driver moves the handle to EB. Trains
- * without a conductor run one-man as before (Create opens their doors automatically).
+ * without a conductor run one-man: Create opens their doors automatically, unless the driver takes the doors
+ * over with the door key (ワンマン扱い, until they leave the controls).
  */
 @Mod.EventBusSubscriber(modid = TrainCabMod.MODID)
 public final class Conductor {
@@ -93,7 +94,10 @@ public final class Conductor {
     private static final double ON_BOARD_RANGE = 0.5;
 
     private static final class Crew {
+        /** The conductor, or the driver when oneMan. */
         UUID conductor;
+        /** The driver handles the doors themselves (ワンマン扱い); gives way to a real conductor. */
+        boolean oneMan;
         boolean doorsOpen;
         /** Doors were closed by the conductor at this station: the driver may depart. */
         boolean departureReady;
@@ -209,20 +213,24 @@ public final class Conductor {
     /** Right-clicking a 車掌ブロック on {@code train} (see ConductorPanelInteraction). */
     static void toggleDuty(ServerPlayer player, Train train) {
         Crew crew = CREWS.get(train.id);
-        Train current = conductingTrain(player);
-        if (crew != null && player.getUUID().equals(crew.conductor)) {
+        boolean staffed = crew != null && !crew.oneMan;
+        if (staffed && player.getUUID().equals(crew.conductor)) {
             CREWS.remove(train.id);
             notify(player, "車掌の乗務を終了しました");
-        } else if (crew != null) {
+        } else if (staffed) {
             notify(player, "この列車には既に車掌が乗務しています");
-        } else if (current != null) {
-            notify(player, "他の列車で車掌として乗務中です");
         } else if (player.equals(Mascon.driverOf(train))) {
             notify(player, "運転士は車掌を兼務できません");
+        } else if (conductingTrain(player) != null) {
+            notify(player, "他の列車で車掌として乗務中です");
         } else {
-            crew = new Crew();
+            // A one-man driver's doors are handed over as they are.
+            if (crew == null) {
+                crew = new Crew();
+                CREWS.put(train.id, crew);
+            }
             crew.conductor = player.getUUID();
-            CREWS.put(train.id, crew);
+            crew.oneMan = false;
             notify(player, "車掌として乗務しました");
         }
     }
@@ -322,6 +330,16 @@ public final class Conductor {
 
         switch (action) {
             case TOGGLE_DOORS -> {
+                if (crew == null && player.equals(Mascon.driverOf(train))) {
+                    // ワンマン: the driver's first door key takes the doors over from Create until they leave the
+                    // controls. At a station Create has already opened them, so that first press closes them.
+                    crew = new Crew();
+                    crew.conductor = player.getUUID();
+                    crew.oneMan = true;
+                    crew.doorsOpen = crew.wasAtStation = train.getCurrentStation() != null;
+                    CREWS.put(train.id, crew);
+                    isConductor = true;
+                }
                 if (!isConductor) {
                     return;
                 }
@@ -349,7 +367,7 @@ public final class Conductor {
             }
             case EMERGENCY -> {
                 // The conductor's key toggles: pull the 車掌弁, or release it again.
-                if (isConductor) {
+                if (isConductor && !crew.oneMan) {
                     crew.emergency = !crew.emergency;
                     notify(player, crew.emergency ? "非常ブレーキを動作させました" : "非常ブレーキを解除しました");
                 }
@@ -462,9 +480,11 @@ public final class Conductor {
 
             // Duty ends when the conductor gets further than conductorRange from the train, logs off, or the
             // train is gone.
-            if (train == null || conductor == null || !nearTrain(conductor, train, TrainCabServerConfig.conductorRange)) {
+            // One-man door handling ends when the driver leaves the controls.
+            if (train == null || conductor == null || !nearTrain(conductor, train, TrainCabServerConfig.conductorRange)
+                || crew.oneMan && !conductor.equals(Mascon.driverOf(train))) {
                 it.remove();
-                if (conductor != null) {
+                if (conductor != null && !crew.oneMan) {
                     notify(conductor, "車掌の乗務を終了しました");
                 }
                 continue;
@@ -482,6 +502,11 @@ public final class Conductor {
                 crew.doorChimeTick = crew.doorChimeTick < DOOR_CHIME_LENGTH ? crew.doorChimeTick + 1 : -1;
             }
 
+            if (crew.oneMan) {
+                // The driver keeps the driver's HUD.
+                send(conductor, status(crew, train, false));
+                continue;
+            }
             send(conductor, status(crew, train, true));
             StationInfo station = Mascon.stationInfoOf(train);
             if (station != null) {
