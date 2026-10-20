@@ -197,13 +197,16 @@ public final class Mascon {
         // give only part of what the rails could take until the driver notches back.
         double grip = TrainCabServerConfig.wheelSlip ? Adhesion.grip(s.driver.level(), s.driver.blockPosition())
             : Double.POSITIVE_INFINITY;
-        if (traction > a * grip) {
-            traction = a * grip * Adhesion.SLIPPING_GRIP;
-            s.wheel = StationInfo.SLIP;
-        }
-        if (v != 0 && brake > a * grip * Adhesion.BRAKE_GRIP) {
-            brake = a * grip * Adhesion.BRAKE_GRIP * Adhesion.SLIPPING_GRIP;
-            s.wheel = StationInfo.SLIDE;
+        boolean spin = traction > a * grip;
+        boolean slide = v != 0 && brake > a * grip * Adhesion.BRAKE_GRIP;
+        if (Adhesion.slips(train, spin || slide, v)) {
+            if (spin) {
+                traction = a * grip * Adhesion.SLIPPING_GRIP;
+                s.wheel = StationInfo.SLIP;
+            } else {
+                brake = a * grip * Adhesion.BRAKE_GRIP * Adhesion.SLIPPING_GRIP;
+                s.wheel = StationInfo.SLIDE;
+            }
         }
         if (s.wheel != StationInfo.GRIP) {
             Adhesion.slipSound(s.driver.level(), s.driver.getX(), s.driver.getY(), s.driver.getZ(), s.wheel);
