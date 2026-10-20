@@ -3,9 +3,9 @@ package uk.iwaservice.traincab.client;
 import java.util.SplittableRandom;
 
 /**
- * Real-time GTO-VVVF traction sound (阪急8000系): PWM from a sine reference and a triangle carrier (asynchronous
+ * Real-time GTO-VVVF traction sound: PWM from a sine reference and a triangle carrier (asynchronous
  * 365 Hz at low speed, then synchronous 27P→1P), turned into motor current, plus torque ripple, gear whine, rolling
- * and fan noise, through the motor body's resonances. Ported from vvvf_run8000.py; the modulation index, gains and
+ * and fan noise, through the motor body's resonances. Ported from a reference script; the modulation index, gains and
  * resonances are by ear, the switching frequencies read off spectrograms.
  *
  * <p>The game thread sets {@link #target} and {@link #state}; the sound thread calls {@link #render}.
@@ -40,7 +40,7 @@ final class VvvfSynth {
     private static final double HYSTERESIS = 0.5;
     /** (centre Hz, Q, gain) of the motor body's resonances. */
     private static final double[][] RESONANCES = {{420, 6, 1.6}, {780, 7, 1.3}, {1350, 8, 1.0}, {2100, 8, 0.7}, {3400, 8, 0.4}};
-    // Measured on vvvf_run8000.py's station run: the motor current to std 1 while running, the filtered noise to
+    // Measured on the reference script's station run: the motor current to std 1 while running, the filtered noise to
     // std 1, and the whole run to peak 0.8 like the reference WAV.
     private static final double CURRENT_GAIN = 1.575;
     private static final double ROLL_GAIN = 3.052;
@@ -216,7 +216,7 @@ final class VvvfSynth {
     }
 
     /**
-     * The air compressor (レシプロ式, like a C-2000): every so often it runs for a while whether the train moves or
+     * The air compressor (レシプロ式): every so often it runs for a while whether the train moves or
      * not, thudding twice per crank turn over the hum of its motor, then lets its unloader valve out with a プシュー.
      */
     private static final class Compressor {

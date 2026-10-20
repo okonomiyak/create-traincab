@@ -3,7 +3,6 @@ package uk.iwaservice.traincab.mascon;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.trains.TrainHUDUpdatePacket;
-import com.simibubi.create.content.trains.entity.Carriage;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.station.GlobalStation;
 import com.simibubi.create.infrastructure.config.AllConfigs;
@@ -15,9 +14,6 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
@@ -47,17 +43,6 @@ public final class Mascon {
 
     /** Passengers' "次は ○○" display doesn't need to be smooth: refresh it every this many ticks. */
     private static final int PASSENGER_SYNC_TICKS = 10;
-
-    /**
-     * Most the rails take before the wheels slip, as a share of P5's force: rain spins P4 and up, snow P3 and up.
-     * Brakes grip BRAKE_GRIP times that (rain slides B6 and up, snow B4 and up; EB always when wet).
-     */
-    private static final double RAIN_GRIP = 0.7;
-    private static final double SNOW_GRIP = 0.5;
-    private static final double BRAKE_GRIP = 2.2;
-    /** Spinning or sliding wheels give only this share of what the rails could take. */
-    private static final double SLIPPING_GRIP = 0.5;
-    private static final int SLIP_SOUND_TICKS = 4;
 
     private static final class State {
         int notch;
@@ -210,23 +195,23 @@ public final class Mascon {
 
         // Wet rails: too much power spins the wheels (空転), too much brake locks them (滑走), and then they
         // give only part of what the rails could take until the driver notches back.
-        double grip = TrainCabServerConfig.wheelSlip ? grip(s.driver) : Double.POSITIVE_INFINITY;
+        double grip = TrainCabServerConfig.wheelSlip ? Adhesion.grip(s.driver.level(), s.driver.blockPosition())
+            : Double.POSITIVE_INFINITY;
         if (traction > a * grip) {
-            traction = a * grip * SLIPPING_GRIP;
+            traction = a * grip * Adhesion.SLIPPING_GRIP;
             s.wheel = StationInfo.SLIP;
         }
-        if (v != 0 && brake > a * grip * BRAKE_GRIP) {
-            brake = a * grip * BRAKE_GRIP * SLIPPING_GRIP;
+        if (v != 0 && brake > a * grip * Adhesion.BRAKE_GRIP) {
+            brake = a * grip * Adhesion.BRAKE_GRIP * Adhesion.SLIPPING_GRIP;
             s.wheel = StationInfo.SLIDE;
         }
-        if (s.wheel != StationInfo.GRIP && now() % SLIP_SOUND_TICKS == 0) {
-            s.driver.level().playSound(null, s.driver.getX(), s.driver.getY(), s.driver.getZ(),
-                SoundEvents.GRINDSTONE_USE, SoundSource.BLOCKS, 0.6f, s.wheel == StationInfo.SLIP ? 1.2f : 1.8f);
+        if (s.wheel != StationInfo.GRIP) {
+            Adhesion.slipSound(s.driver.level(), s.driver.getX(), s.driver.getY(), s.driver.getZ(), s.wheel);
         }
 
         // A gradient pulls the train downhill; standing still, the brake holds it as long as it is the stronger.
         v += Math.min(traction, Math.max(top - v, 0))
-            - a * TrainCabServerConfig.gradeEffect * slope(train) * s.direction;
+            - a * TrainCabServerConfig.gradeEffect * Adhesion.slope(train) * s.direction;
         v = Math.abs(v) <= brake ? 0 : v - Math.signum(v) * brake;
         train.speed = Mth.clamp(v, -train.maxSpeed(), train.maxSpeed()) * s.direction;
 
@@ -285,36 +270,6 @@ public final class Mascon {
             : new StationInfo(s.station.name, (float) s.stationDistance, s.wheel);
     }
 
-    /** Sine of the train's average gradient, positive when its leading end is higher. */
-    private static double slope(Train train) {
-        double rise = 0;
-        double length = 0;
-        for (Carriage carriage : train.carriages) {
-            Vec3 lead = carriage.getLeadingPoint().getPosition(train.graph);
-            Vec3 trail = carriage.getTrailingPoint().getPosition(train.graph);
-            double d = lead.distanceTo(trail);
-            // A carriage halfway through a portal has its two points in different dimensions.
-            if (d > 0.5 && d < 64) {
-                rise += lead.y - trail.y;
-                length += d;
-            }
-        }
-        return length == 0 ? 0 : rise / length;
-    }
-
-    /** RAIN_GRIP or SNOW_GRIP where it rains or snows on the driver (not in tunnels or under roofs), else no limit. */
-    private static double grip(ServerPlayer driver) {
-        Level level = driver.level();
-        BlockPos pos = driver.blockPosition();
-        if (!level.isRaining() || !level.canSeeSky(pos)) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return switch (level.getBiome(pos).value().getPrecipitationAt(pos)) {
-            case RAIN -> RAIN_GRIP;
-            case SNOW -> SNOW_GRIP;
-            default -> Double.POSITIVE_INFINITY;
-        };
-    }
 
     /**
      * Create only sends the driver the train's speed while a movement key is held (every 5 ticks),
