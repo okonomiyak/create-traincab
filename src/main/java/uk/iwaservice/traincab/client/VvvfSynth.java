@@ -44,12 +44,12 @@ final class VvvfSynth {
             new double[] {12.3, 33, 43, 59, 67}, new double[] {0.6, 0.7, 0.85, 0.95, 1.0}, 11,
             new double[] {0}, new double[] {365}, false, 0, 0.35, 0.6),
         // GTO・音階: the asynchronous carrier climbs the F major scale
-        // ファ ソ ラ シ♭ ド レ ミ ファ, then ソ, and walks back down when stopping.
-        new Profile(new double[] {0, 12, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
-            new double[] {0, 12, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0},
-            new double[] {0, 12, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
-            new double[] {0, 12, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0}, 2.5,
-            new double[] {0, 1.3, 2.6, 3.9, 5.2, 6.5, 7.8, 9.1, 10.4},
+        // ファ ソ ラ シ♭ ド レ ミ ファ, then ソ, over the first ~8 km/h, and walks back down when stopping.
+        new Profile(new double[] {0, 6, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
+            new double[] {0, 6, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0},
+            new double[] {0, 6, 20, 32, 44}, new int[] {0, 7, 5, 3, 1},
+            new double[] {0, 6, 20, 32, 44}, new double[] {0.1, 0.55, 0.7, 0.85, 1.0}, 1.2,
+            new double[] {0, 0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8},
             new double[] {349.2, 392.0, 440.0, 466.2, 523.3, 587.3, 659.3, 698.5, 784.0}, true, 0, 1, 0),
         // IGBT: an asynchronous carrier rising 750→1050 Hz (the ヒューン), then wide 3P and 1P.
         new Profile(new double[] {0, 40, 52}, new int[] {0, 3, 1},
