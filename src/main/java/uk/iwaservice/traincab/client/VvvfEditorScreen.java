@@ -17,6 +17,8 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.neoforged.neoforge.network.PacketDistributor;
 import uk.iwaservice.traincab.block.InverterBlockEntity;
 import uk.iwaservice.traincab.sound.VvvfEdit;
+import uk.iwaservice.traincab.sound.VvvfLibraryAction;
+import uk.iwaservice.traincab.sound.VvvfLibraryList;
 import uk.iwaservice.traincab.sound.VvvfProfile;
 
 import java.util.ArrayList;
@@ -30,9 +32,9 @@ import java.util.function.Predicate;
 /**
  * Right-click on a VVVFインバーター, placed or built into a train: the editor for its sound (VvvfProfile). 力行 / 回生
  * tabs: the pulse modes from each fundamental (Hz; VvvfSynth.F_MAX at Create's top speed) on. 非同期 tab: the
- * asynchronous carrier. 全般 tab: name, presets, levels, and copy / paste of the text form to share a sound. ▶ plays a
- * station run of the sound being edited and follows the edits as they are made. ✓ or Esc saves, × closes without
- * saving.
+ * asynchronous carrier. 全般 tab: name, presets, levels, and copy / paste of the text form to share a sound. サーバー
+ * tab: the サーバーの音 (VvvfLibrary), sounds saved on the server for any inverter and anyone. ▶ plays a station run of
+ * the sound being edited and follows the edits as they are made. ✓ or Esc saves, × closes without saving.
  */
 public class VvvfEditorScreen extends Screen {
 
@@ -62,7 +64,8 @@ public class VvvfEditorScreen extends Screen {
     private static final int BRAKE = 1;
     private static final int ASYNC = 2;
     private static final int GENERAL = 3;
-    private static final String[] TABS = {"力行", "回生", "非同期", "全般"};
+    private static final int LIBRARY = 4;
+    private static final String[] TABS = {"力行", "回生", "非同期", "全般", "サーバー"};
     private static final String[] NOTES = {"C", "C#", "D", "E♭", "E", "F", "F#", "G", "G#", "A", "B♭", "B"};
     private static final String[] SOLFEGE = {"ド", "ド#", "レ", "ミ♭", "ミ", "ファ", "ファ#", "ソ", "ソ#", "ラ", "シ♭", "シ"};
 
@@ -111,6 +114,8 @@ public class VvvfEditorScreen extends Screen {
     private IconButton previewButton;
     /** Whether previewButton shows ■, to swap it back once the run is over. */
     private boolean showsStop;
+    /** VvvfLibraryList.received when this screen last caught up with the server's answer. */
+    private int libraryReceived = VvvfLibraryList.received;
 
     VvvfEditorScreen(VvvfProfile saved, Consumer<String> save) {
         super(Component.literal("VVVF インバーターの音"));
@@ -216,13 +221,16 @@ public class VvvfEditorScreen extends Screen {
     @Override
     protected void init() {
         int longest = Math.max(Math.max(accel.size(), brake.size()), carrier.size());
+        if (tab == LIBRARY) {
+            longest = Math.max(longest, libraryEntries().size());
+        }
         int fit = (height - 8 - CreateGui.HEADER_H - CreateGui.FOOTER_H - FIXED_BODY_H) / ROW_H;
         rows = Math.max(MIN_ROWS, Math.min(Math.min(longest + 1, MAX_ROWS), fit));
         int x = left();
         for (int i = 0; i < TABS.length; i++) {
             int target = i;
             addRenderableWidget(new CreateGui.TextButton(Button.builder(Component.literal(TABS[i]), b -> switchTab(target))
-                .bounds(x + 1 + 60 * i, top() + CreateGui.HEADER_H + 4, 58, 20), tab == i));
+                .bounds(x + 1 + 48 * i, top() + CreateGui.HEADER_H + 4, 46, 20), tab == i));
         }
         int y = contentTop();
         switch (tab) {
@@ -245,6 +253,7 @@ public class VvvfEditorScreen extends Screen {
                     v -> jitter = v);
                 initSteps();
             }
+            case LIBRARY -> initLibrary();
             default -> initGeneral();
         }
         int footer = top() + CreateGui.HEADER_H + bodyH();
@@ -341,6 +350,56 @@ public class VvvfEditorScreen extends Screen {
         }
     }
 
+    /** The サーバーの音: save the sound being edited there, and load or delete the saved ones. */
+    private void initLibrary() {
+        int x = left();
+        int y = contentTop();
+        boolean named = !name.isBlank();
+        addRenderableWidget(Button.builder(Component.literal(named ? "「" + name.strip() + "」をサーバーに保存" : "サーバーに保存"),
+                b -> libraryAction(VvvfLibraryAction.SAVE, profile().code()))
+            .bounds(x, y + 2, 196, 18).tooltip(Tooltip.create(Component.literal(named
+                ? "今の音をサーバーに保存して、ほかのインバーターやほかの人も読み込めるようにする。同じ名前の自分の音は上書き"
+                : "全般タブで名前を付けると保存できます")))
+            .build(CreateGui.TextButton::new)).active = named;
+        addRenderableWidget(CreateGui.icon(x + 222, y + 2, AllIcons.I_REFRESH, "一覧を読み直す",
+            () -> libraryAction(VvvfLibraryAction.LIST, "")));
+        List<VvvfLibraryList.Entry> entries = libraryEntries();
+        scroll = Mth.clamp(scroll, 0, Math.max(0, entries.size() - rows));
+        int ry = tableTop();
+        for (int i = scroll; i < Math.min(entries.size(), scroll + rows); i++, ry += ROW_H) {
+            VvvfLibraryList.Entry entry = entries.get(i);
+            addRenderableWidget(Button.builder(Component.literal("読み込む"), b -> loadFromLibrary(entry))
+                .bounds(x + 174, ry + 1, 44, 18).tooltip(Tooltip.create(Component.literal(
+                    "この音を編集中の音にする (✓ でこのインバーターに保存)"))).build(CreateGui.TextButton::new));
+            if (entry.deletable()) {
+                addRenderableWidget(CreateGui.icon(x + 222, ry + 1, AllIcons.I_TRASH, "サーバーから削除",
+                    () -> libraryAction(VvvfLibraryAction.DELETE, entry.name())));
+            }
+        }
+        tableButtons(entries, 0, null);
+    }
+
+    /** The サーバーの音 last heard from the server. */
+    private static List<VvvfLibraryList.Entry> libraryEntries() {
+        return VvvfLibraryList.latest == null ? List.of() : VvvfLibraryList.latest.entries();
+    }
+
+    private static void libraryAction(int op, String text) {
+        PacketDistributor.sendToServer(new VvvfLibraryAction(op, text));
+    }
+
+    private void loadFromLibrary(VvvfLibraryList.Entry entry) {
+        VvvfProfile loaded = VvvfProfile.parse(entry.code());
+        if (loaded == null) {
+            status = "「" + entry.name() + "」を読み込めませんでした";
+            return;
+        }
+        load(loaded);
+        changed();
+        status = "「" + entry.name() + "」を読み込みました (✓ でこのインバーターに保存)";
+        rebuildWidgets();
+    }
+
     /**
      * A field showing value; accept gets each edit and says whether it is valid (else the field turns red and the
      * sound keeps the last valid value).
@@ -394,16 +453,18 @@ public class VvvfEditorScreen extends Screen {
         })).active = list.size() > 1;
     }
 
-    /** Under the table: add a row, and scroll when they don't all fit. */
+    /** Under the table: add a row (unless add is null), and scroll when they don't all fit. */
     private void tableButtons(List<?> list, int max, Runnable add) {
         int x = left();
         int y = addTop();
-        addRenderableWidget(Button.builder(Component.literal("＋ 行を追加"), b -> {
-            add.run();
-            scroll = Math.max(0, list.size() - rows);
-            changed();
-            rebuildWidgets();
-        }).bounds(x, y, 100, 18).build(CreateGui.TextButton::new)).active = list.size() < max;
+        if (add != null) {
+            addRenderableWidget(Button.builder(Component.literal("＋ 行を追加"), b -> {
+                add.run();
+                scroll = Math.max(0, list.size() - rows);
+                changed();
+                rebuildWidgets();
+            }).bounds(x, y, 100, 18).build(CreateGui.TextButton::new)).active = list.size() < max;
+        }
         if (list.size() > rows) {
             addRenderableWidget(CreateGui.icon(x + 200, y, AllIcons.I_PRIORITY_HIGH, "上へ (ホイールでも)", () -> scrollBy(-1)))
                 .active = scroll > 0;
@@ -413,7 +474,8 @@ public class VvvfEditorScreen extends Screen {
     }
 
     private int tableSize() {
-        return tab == ACCEL ? accel.size() : tab == BRAKE ? brake.size() : tab == ASYNC ? carrier.size() : 0;
+        return tab == ACCEL ? accel.size() : tab == BRAKE ? brake.size() : tab == ASYNC ? carrier.size()
+            : tab == LIBRARY ? libraryEntries().size() : 0;
     }
 
     private void scrollBy(int by) {
@@ -424,6 +486,9 @@ public class VvvfEditorScreen extends Screen {
     private void switchTab(int target) {
         tab = target;
         scroll = 0;
+        if (target == LIBRARY) {
+            libraryAction(VvvfLibraryAction.LIST, "");
+        }
         rebuildWidgets();
     }
 
@@ -480,6 +545,16 @@ public class VvvfEditorScreen extends Screen {
     public void tick() {
         if (VvvfPreview.isPlaying() != showsStop) {
             showPreviewState();
+        }
+        // The server answered a サーバー tab action: show what it did, and the new list.
+        if (VvvfLibraryList.received != libraryReceived) {
+            libraryReceived = VvvfLibraryList.received;
+            if (!VvvfLibraryList.latest.message().isEmpty()) {
+                status = VvvfLibraryList.latest.message();
+            }
+            if (tab == LIBRARY) {
+                rebuildWidgets();
+            }
         }
     }
 
@@ -545,6 +620,7 @@ public class VvvfEditorScreen extends Screen {
                 g.drawString(font, "%", x + 214, y, WHITE);
                 drawSteps(g);
             }
+            case LIBRARY -> drawLibrary(g);
             default -> drawGeneral(g);
         }
         String line = VvvfPreview.isPlaying() ? VvvfPreview.describe() : status;
@@ -580,6 +656,23 @@ public class VvvfEditorScreen extends Screen {
             g.drawString(font, CreateGui.fit(font, noteName(row.hz), 84), x + 136, y + 6, WHITE);
         }
         drawRange(g, carrier.size());
+    }
+
+    private void drawLibrary(GuiGraphics g) {
+        int x = left();
+        int y = tableTop();
+        List<VvvfLibraryList.Entry> entries = libraryEntries();
+        g.drawString(font, "名前", x, y - 10, GREY);
+        g.drawString(font, "保存した人", x + 112, y - 10, GREY);
+        if (entries.isEmpty()) {
+            g.drawString(font, VvvfLibraryList.latest == null ? "読み込み中…" : "まだありません", x, y + 6, GREY);
+        }
+        for (int i = scroll; i < Math.min(entries.size(), scroll + rows); i++, y += ROW_H) {
+            VvvfLibraryList.Entry entry = entries.get(i);
+            g.drawString(font, CreateGui.fit(font, entry.name(), 108), x, y + 6, WHITE);
+            g.drawString(font, CreateGui.fit(font, entry.owner(), 58), x + 112, y + 6, GREY);
+        }
+        drawRange(g, entries.size());
     }
 
     /** "3–6 / 7" when the table doesn't fit. */

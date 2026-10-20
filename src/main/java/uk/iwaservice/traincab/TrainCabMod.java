@@ -21,6 +21,8 @@ import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
 import uk.iwaservice.traincab.sound.VvvfEdit;
+import uk.iwaservice.traincab.sound.VvvfLibraryAction;
+import uk.iwaservice.traincab.sound.VvvfLibraryList;
 import uk.iwaservice.traincab.sound.VvvfSync;
 
 @Mod(TrainCabMod.MODID)
@@ -51,6 +53,8 @@ public class TrainCabMod {
             .playToClient(SoundPlay.TYPE, SoundPlay.STREAM_CODEC, SoundPlay::handle)
             .playToClient(AnnouncementMenu.TYPE, AnnouncementMenu.STREAM_CODEC, AnnouncementMenu::handle)
             .playToServer(VvvfEdit.TYPE, VvvfEdit.STREAM_CODEC, VvvfEdit::handle)
-            .playToClient(VvvfSync.TYPE, VvvfSync.STREAM_CODEC, VvvfSync::handle));
+            .playToClient(VvvfSync.TYPE, VvvfSync.STREAM_CODEC, VvvfSync::handle)
+            .playToServer(VvvfLibraryAction.TYPE, VvvfLibraryAction.STREAM_CODEC, VvvfLibraryAction::handle)
+            .playToClient(VvvfLibraryList.TYPE, VvvfLibraryList.STREAM_CODEC, VvvfLibraryList::handle));
     }
 }
