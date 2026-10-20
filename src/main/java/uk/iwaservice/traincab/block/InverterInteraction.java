@@ -5,21 +5,19 @@ import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
+import uk.iwaservice.traincab.client.VvvfEditorScreen;
 
-/** Right-clicking a VVVFインバーター on a train picks its next sound. */
+/**
+ * Right-clicking a VVVFインバーター on a train opens the editor for its sound. Create calls this on the client first
+ * (then on the server, where there is nothing to do); saving goes through VvvfEdit.
+ */
 public class InverterInteraction extends MovingInteractionBehaviour {
 
     @Override
     public boolean handlePlayerInteraction(Player player, InteractionHand activeHand, BlockPos localPos,
                                            AbstractContraptionEntity contraptionEntity) {
-        StructureBlockInfo info = contraptionEntity.getContraption().getBlocks().get(localPos);
-        if (!player.level().isClientSide && info != null && info.state().hasProperty(InverterBlock.SOUND)) {
-            BlockState next = InverterBlock.next(info.state());
-            // Synced to the clients tracking the train (VvvfSounds looks again within a second), and saved with it.
-            contraptionEntity.setBlock(localPos, new StructureBlockInfo(localPos, next, info.nbt()));
-            InverterBlock.notify(player, next);
+        if (player.level().isClientSide) {
+            VvvfEditorScreen.openOnTrain(contraptionEntity, localPos);
         }
         return true;
     }

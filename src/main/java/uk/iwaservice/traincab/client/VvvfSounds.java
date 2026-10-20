@@ -1,5 +1,6 @@
 package uk.iwaservice.traincab.client;
 
+import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import com.simibubi.create.content.trains.entity.Train;
@@ -13,17 +14,21 @@ import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.valueproviders.ConstantFloat;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.BufferUtils;
 import uk.iwaservice.traincab.TrainCabConfig;
 import uk.iwaservice.traincab.TrainCabItems;
 import uk.iwaservice.traincab.TrainCabMod;
-import uk.iwaservice.traincab.block.InverterBlock;
+import uk.iwaservice.traincab.block.InverterBlockEntity;
+import uk.iwaservice.traincab.sound.VvvfProfile;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -31,13 +36,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * VVVF traction sound for the trains near the player that carry a VVVFインバーター, coming from the nearest carriage
- * with one, in the sound picked on that inverter.
+ * with one, in the sound stored on that inverter (VvvfProfile, edited in VvvfEditorScreen).
  * Clients only see where carriages are, not the notch, so 力行 / 惰行 / 回生 comes from the acceleration
  * (except for the train this player drives with the mascon, which uses the notch).
  */
@@ -69,12 +75,10 @@ public final class VvvfSounds {
     // Client thread only.
     private static final Map<UUID, TrainSound> SOUNDS = new HashMap<>();
     /**
-     * Each contraption's inverter sound (-1 for none) and the client tick to look again: the blocks are fixed once
-     * assembled, but the sound can be switched on the train.
+     * The sound of each contraption's first inverter, empty without one. A carriage's blocks are fixed once assembled,
+     * and a sound edited on the train comes with VvvfSync, which drops the entry.
      */
-    private static final Map<Contraption, int[]> INVERTER_SOUND = new WeakHashMap<>();
-    private static final int RESCAN_TICKS = 20;
-    private static int clientTicks;
+    private static final Map<Contraption, Optional<VvvfSynth.Tables>> INVERTERS = new WeakHashMap<>();
 
     private VvvfSounds() {
     }
@@ -82,12 +86,11 @@ public final class VvvfSounds {
     static void tick() {
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
-        clientTicks++;
         Map<UUID, CarriageContraptionEntity> nearest = new HashMap<>();
         if (mc.level != null && player != null && TrainCabConfig.vvvfSound) {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity instanceof CarriageContraptionEntity cce && cce.getCarriage() != null
-                    && cce.distanceToSqr(player) < RANGE * RANGE && inverterSound(cce) >= 0) {
+                    && cce.distanceToSqr(player) < RANGE * RANGE && inverter(cce).isPresent()) {
                     nearest.merge(cce.getCarriage().train.id, cce,
                         (a, b) -> a.distanceToSqr(player) <= b.distanceToSqr(player) ? a : b);
                 }
@@ -108,24 +111,81 @@ public final class VvvfSounds {
         }
     }
 
-    /** The sound of the first inverter on this carriage, or -1 without one. */
-    private static int inverterSound(CarriageContraptionEntity cce) {
+    /** The sound of the first inverter on this carriage, or empty without one. */
+    private static Optional<VvvfSynth.Tables> inverter(CarriageContraptionEntity cce) {
         Contraption contraption = cce.getContraption();
         if (contraption == null) {
-            return -1;
+            return Optional.empty();
         }
-        int[] cached = INVERTER_SOUND.get(contraption);
-        if (cached == null || clientTicks >= cached[1]) {
-            int sound = contraption.getBlocks().values().stream()
-                .filter(info -> info.state().is(TrainCabItems.INVERTER.get()))
-                .mapToInt(info -> info.state().getValue(InverterBlock.SOUND)).findFirst().orElse(-1);
-            cached = new int[] {sound, clientTicks + RESCAN_TICKS};
-            INVERTER_SOUND.put(contraption, cached);
-        }
-        return cached[0];
+        return INVERTERS.computeIfAbsent(contraption, c -> c.getBlocks().values().stream()
+            .filter(info -> info.state().is(TrainCabItems.INVERTER.get())).findFirst()
+            .map(info -> VvvfSynth.Tables.of(VvvfProfile.orDefault(
+                info.nbt() == null ? "" : info.nbt().getString(InverterBlockEntity.TAG)))));
     }
 
-    private static final class TrainSound extends AbstractSoundInstance implements TickableSoundInstance {
+    /** VvvfSync: the inverter at localPos of that contraption (a train's carriage) got a new sound. */
+    public static void onSync(int entityId, BlockPos localPos, String code) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null || !(level.getEntity(entityId) instanceof AbstractContraptionEntity entity)
+            || entity.getContraption() == null) {
+            return;
+        }
+        Contraption contraption = entity.getContraption();
+        StructureBlockInfo info = contraption.getBlocks().get(localPos);
+        if (info != null) {
+            contraption.getBlocks().put(localPos,
+                new StructureBlockInfo(localPos, info.state(), InverterBlockEntity.withCode(info.nbt(), code)));
+            INVERTERS.remove(contraption);
+        }
+    }
+
+    /** A sound streamed from {@link #fill}, 100 ms at a time: a train's (TrainSound) or the editor's 試聴 (VvvfPreview). */
+    abstract static class SynthSound extends AbstractSoundInstance {
+
+        SynthSound() {
+            super(LOCATION, SoundSource.BLOCKS, SoundInstance.createUnseededRandom());
+        }
+
+        /** Fills {@code out} with the next samples, in [-1, 1]; false once the sound is over. */
+        abstract boolean fill(float[] out);
+
+        @Override
+        public WeighedSoundEvents resolve(SoundManager manager) {
+            sound = new Sound(LOCATION, ConstantFloat.of(1), ConstantFloat.of(1), 1, Sound.Type.FILE, true, false, 16);
+            return new WeighedSoundEvents(LOCATION, null);
+        }
+
+        @Override
+        public CompletableFuture<AudioStream> getStream(SoundBufferLibrary buffers, Sound sound, boolean looping) {
+            return CompletableFuture.completedFuture(new AudioStream() {
+                private final float[] samples = new float[CHUNK_SAMPLES];
+
+                @Override
+                public AudioFormat getFormat() {
+                    return FORMAT;
+                }
+
+                @Override
+                public ByteBuffer read(int size) {
+                    // null ends the stream: Minecraft stops the sound once what was queued has played.
+                    if (!fill(samples)) {
+                        return null;
+                    }
+                    ByteBuffer buf = BufferUtils.createByteBuffer(samples.length * 2);
+                    for (float s : samples) {
+                        buf.putShort((short) (s * 32767));
+                    }
+                    return buf.flip();
+                }
+
+                @Override
+                public void close() {
+                }
+            });
+        }
+    }
+
+    private static final class TrainSound extends SynthSound implements TickableSoundInstance {
 
         private final VvvfSynth synth = new VvvfSynth();
         private CarriageContraptionEntity carriage;
@@ -138,8 +198,13 @@ public final class VvvfSounds {
         boolean stopped;
 
         TrainSound() {
-            super(LOCATION, SoundSource.BLOCKS, SoundInstance.createUnseededRandom());
             volume = VOLUME;
+        }
+
+        @Override
+        boolean fill(float[] out) {
+            synth.render(out);
+            return true;
         }
 
         void update(SoundManager sounds, CarriageContraptionEntity cce) {
@@ -172,7 +237,7 @@ public final class VvvfSounds {
             }
             synth.state = state;
             synth.volume = TrainCabConfig.vvvfVolume;
-            synth.profile = VvvfSynth.PROFILES[Math.min(inverterSound(cce), VvvfSynth.PROFILES.length - 1)];
+            synth.tables = inverter(cce).orElse(VvvfSynth.Tables.DEFAULT);
             synth.target = VvvfSynth.F_MAX * speed / AllConfigs.server().trains.trainTopSpeed.getF();
 
             // Out of sources, or the stream ran dry in a lag spike: try again every second.
@@ -194,38 +259,6 @@ public final class VvvfSounds {
         @Override
         public boolean isStopped() {
             return stopped;
-        }
-
-        @Override
-        public WeighedSoundEvents resolve(SoundManager manager) {
-            sound = new Sound(LOCATION, ConstantFloat.of(1), ConstantFloat.of(1), 1, Sound.Type.FILE, true, false, 16);
-            return new WeighedSoundEvents(LOCATION, null);
-        }
-
-        @Override
-        public CompletableFuture<AudioStream> getStream(SoundBufferLibrary buffers, Sound sound, boolean looping) {
-            return CompletableFuture.completedFuture(new AudioStream() {
-                private final float[] samples = new float[CHUNK_SAMPLES];
-
-                @Override
-                public AudioFormat getFormat() {
-                    return FORMAT;
-                }
-
-                @Override
-                public ByteBuffer read(int size) {
-                    synth.render(samples);
-                    ByteBuffer buf = BufferUtils.createByteBuffer(samples.length * 2);
-                    for (float s : samples) {
-                        buf.putShort((short) (s * 32767));
-                    }
-                    return buf.flip();
-                }
-
-                @Override
-                public void close() {
-                }
-            });
         }
     }
 }

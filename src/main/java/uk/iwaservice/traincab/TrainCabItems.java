@@ -7,6 +7,7 @@ import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import uk.iwaservice.traincab.block.AdvancedCabBlock;
 import uk.iwaservice.traincab.block.AdvancedCabInteraction;
 import uk.iwaservice.traincab.block.InverterBlock;
+import uk.iwaservice.traincab.block.InverterBlockEntity;
 import uk.iwaservice.traincab.block.InverterInteraction;
 import com.simibubi.create.content.trains.graph.EdgePointType;
 import com.simibubi.create.content.trains.track.TrackTargetingBlockItem;
@@ -58,10 +59,12 @@ public final class TrainCabItems {
     public static final DeferredItem<Item> SPEAKER_LINKER =
         ITEMS.register("speaker_linker", () -> new SpeakerLinkerItem(new Item.Properties().stacksTo(1)));
 
-    /** VVVFインバーター: built into a train, it makes the train sound like one (see VvvfSounds). */
+    /** VVVFインバーター: built into a train, it makes the train sound like one (see VvvfSounds), in its edited sound. */
     public static final DeferredBlock<InverterBlock> INVERTER = BLOCKS.register("inverter", () -> new InverterBlock(
         BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(1.5f).sound(SoundType.METAL)));
     public static final DeferredItem<BlockItem> INVERTER_ITEM = ITEMS.registerSimpleBlockItem(INVERTER);
+    public static final Supplier<BlockEntityType<InverterBlockEntity>> INVERTER_ENTITY = BLOCK_ENTITIES.register(
+        "inverter", () -> BlockEntityType.Builder.of(InverterBlockEntity::new, INVERTER.get()).build(null));
 
     /**
      * 高度運転台: Create's train controls (drives the same way) plus the brake cylinder pressure gauge on the HUD and

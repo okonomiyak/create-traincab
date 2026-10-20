@@ -20,6 +20,8 @@ import uk.iwaservice.traincab.sound.BellEdit;
 import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
+import uk.iwaservice.traincab.sound.VvvfEdit;
+import uk.iwaservice.traincab.sound.VvvfSync;
 
 @Mod(TrainCabMod.MODID)
 public class TrainCabMod {
@@ -36,7 +38,7 @@ public class TrainCabMod {
         if (ModList.get().isLoaded(CrnCompat.MODID)) {
             CrnCompat.init();
         }
-        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("10")
+        modEventBus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("11")
             .playToServer(MasconPayload.TYPE, MasconPayload.STREAM_CODEC, MasconPayload::handle)
             .playToServer(ConductorAction.TYPE, ConductorAction.STREAM_CODEC, ConductorAction::handle)
             .playToClient(StationInfo.TYPE, StationInfo.STREAM_CODEC, StationInfo::handle)
@@ -47,6 +49,8 @@ public class TrainCabMod {
             .playToServer(SoundRequest.TYPE, SoundRequest.STREAM_CODEC, SoundRequest::handle)
             .playToServer(BellEdit.TYPE, BellEdit.STREAM_CODEC, BellEdit::handle)
             .playToClient(SoundPlay.TYPE, SoundPlay.STREAM_CODEC, SoundPlay::handle)
-            .playToClient(AnnouncementMenu.TYPE, AnnouncementMenu.STREAM_CODEC, AnnouncementMenu::handle));
+            .playToClient(AnnouncementMenu.TYPE, AnnouncementMenu.STREAM_CODEC, AnnouncementMenu::handle)
+            .playToServer(VvvfEdit.TYPE, VvvfEdit.STREAM_CODEC, VvvfEdit::handle)
+            .playToClient(VvvfSync.TYPE, VvvfSync.STREAM_CODEC, VvvfSync::handle));
     }
 }
