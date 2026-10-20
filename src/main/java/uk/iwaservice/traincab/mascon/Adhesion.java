@@ -10,6 +10,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import uk.iwaservice.traincab.TrainCabServerConfig;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
+
 /** Gradients and wheel slip, for mascon driving (Mascon.tick) and for Create's own automatic driving (auto). */
 public final class Adhesion {
 
@@ -24,6 +29,18 @@ public final class Adhesion {
     /** Spinning or sliding wheels give only this share of what the rails could take. */
     static final double SLIPPING_GRIP = 0.5;
     private static final int SLIP_SOUND_TICKS = 4;
+    /** Wheels only spin or slide below this speed. */
+    private static final double SLIP_MAX_KMH = 45;
+    /** Chance per tick, at a standstill, that wheels asked too much of start to spin or slide (less the faster). */
+    private static final double SLIP_CHANCE = 0.04;
+    /** Each spin or slide lasts this many ticks, picked at random in [min, max). */
+    private static final int SLIP_MIN_TICKS = 10;
+    private static final int SLIP_MAX_TICKS = 40;
+
+    /** Ticks left of each train's current spin or slide. Server thread only. */
+    // ponytail: entries of trains removed mid-slip stay (one small entry each).
+    private static final Map<UUID, Integer> SLIPPING = new HashMap<>();
+    private static final Random RANDOM = new Random();
 
     private Adhesion() {
     }
@@ -45,7 +62,7 @@ public final class Adhesion {
         CarriageContraptionEntity cce = train.carriages.get(0).anyAvailableEntity();
         if (TrainCabServerConfig.wheelSlip && cce != null) {
             double grip = grip(cce.level(), cce.blockPosition());
-            if (v - was > a * grip) {
+            if (slips(train, v - was > a * grip, was)) {
                 v = was + a * grip * SLIPPING_GRIP;
                 slipSound(cce.level(), cce.getX(), cce.getY(), cce.getZ(), StationInfo.SLIP);
             }
@@ -56,6 +73,32 @@ public final class Adhesion {
             v = Math.max(v - a * TrainCabServerConfig.masconRate * TrainCabServerConfig.gradeEffect * uphill, 0);
         }
         train.speed = v * dir;
+    }
+
+    /**
+     * Whether a train whose wheels are asked more than the rails take ({@code over}) spins or slides this tick,
+     * moving at {@code speed} blocks / tick. Only below SLIP_MAX_KMH, and not all the time: each tick a spin or slide
+     * of SLIP_MIN_TICKS..SLIP_MAX_TICKS may start, the likelier the slower; asking less stops it at once.
+     */
+    static boolean slips(Train train, boolean over, double speed) {
+        double kmh = Math.abs(speed) * 20 * 3.6;
+        if (!over || kmh >= SLIP_MAX_KMH) {
+            SLIPPING.remove(train.id);
+            return false;
+        }
+        int left = SLIPPING.getOrDefault(train.id, 0);
+        if (left == 0 && RANDOM.nextDouble() < SLIP_CHANCE * (1 - kmh / SLIP_MAX_KMH)) {
+            left = SLIP_MIN_TICKS + RANDOM.nextInt(SLIP_MAX_TICKS - SLIP_MIN_TICKS);
+        }
+        if (left == 0) {
+            return false;
+        }
+        if (left == 1) {
+            SLIPPING.remove(train.id);
+        } else {
+            SLIPPING.put(train.id, left - 1);
+        }
+        return true;
     }
 
     /** Sine of the train's average gradient, positive when its leading end is higher. */
