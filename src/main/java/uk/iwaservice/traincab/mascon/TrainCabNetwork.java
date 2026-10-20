@@ -9,10 +9,12 @@ import uk.iwaservice.traincab.sound.BellEdit;
 import uk.iwaservice.traincab.sound.SoundChunk;
 import uk.iwaservice.traincab.sound.SoundPlay;
 import uk.iwaservice.traincab.sound.SoundRequest;
+import uk.iwaservice.traincab.sound.VvvfEdit;
+import uk.iwaservice.traincab.sound.VvvfSync;
 
 public final class TrainCabNetwork {
 
-    private static final String PROTOCOL_VERSION = "10";
+    private static final String PROTOCOL_VERSION = "11";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         new ResourceLocation(TrainCabMod.MODID, "main"),
@@ -79,6 +81,16 @@ public final class TrainCabNetwork {
             .encoder(AnnouncementMenu::encode)
             .decoder(AnnouncementMenu::decode)
             .consumerMainThread(AnnouncementMenu::handle)
+            .add();
+        CHANNEL.messageBuilder(VvvfEdit.class, 11, NetworkDirection.PLAY_TO_SERVER)
+            .encoder(VvvfEdit::encode)
+            .decoder(VvvfEdit::decode)
+            .consumerMainThread(VvvfEdit::handle)
+            .add();
+        CHANNEL.messageBuilder(VvvfSync.class, 12, NetworkDirection.PLAY_TO_CLIENT)
+            .encoder(VvvfSync::encode)
+            .decoder(VvvfSync::decode)
+            .consumerMainThread(VvvfSync::handle)
             .add();
     }
 }
