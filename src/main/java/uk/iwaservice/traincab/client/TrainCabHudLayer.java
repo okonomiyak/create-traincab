@@ -251,12 +251,17 @@ public final class TrainCabHudLayer {
         int color;
         GlobalStation station = train.getCurrentStation();
         CrewStatus crew = CrewStatus.current();
+        StationInfo info = StationInfo.latest;
+        int wheel = info == null || StationInfo.age > 10 ? StationInfo.GRIP : info.wheel();
         if (train.derailed) {
             status = "脱線";
             color = COLOR_RED;
         } else if (crew != null && crew.emergency()) {
             status = "車掌非常";
             color = COLOR_RED;
+        } else if (wheel != StationInfo.GRIP) {
+            status = wheel == StationInfo.SLIP ? "空転" : "滑走";
+            color = COLOR_ORANGE;
         } else if (station == null && crew != null && crew.doorsOpen()) {
             status = "戸開";
             color = COLOR_ORANGE;
@@ -264,7 +269,7 @@ public final class TrainCabHudLayer {
             status = "信号待ち";
             color = COLOR_ORANGE;
         } else if (station != null) {
-            // With a conductor on board the driver waits for 戸閉 (doors opened and closed again) before departing.
+            // With a conductor on board (or one-man door handling) the driver waits for 戸閉 (doors opened and closed again) before departing.
             status = crew == null ? station.name
                 : (crew.doorsOpen() ? "戸開 " : crew.departureReady() ? "戸閉 " : "到着 ") + station.name;
             color = crew == null || !crew.doorsOpen() && crew.departureReady() ? COLOR_GREEN : COLOR_ORANGE;

@@ -8,7 +8,7 @@
   "key.traincab.emergency": "Emergency Brake",
   "key.traincab.reverser_forward": "Reverser towards Forward (when stopped)",
   "key.traincab.reverser_backward": "Reverser towards Reverse (when stopped)",
-  "key.traincab.doors": "Close/Open Doors (conductor)",
+  "key.traincab.doors": "Close/Open Doors (conductor / one-man driver)",
   "key.traincab.bell": "Signal Bell (conductor <-> driver)",
   "item.traincab.conductor_cap": "Conductor Cap",
   "block.traincab.conductor_panel": "Conductor Panel",
